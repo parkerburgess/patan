@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+svg text {
+  font-family: Georgia, "Times New Roman", serif;
+  user-select: none;
+}
+
+svg polygon {
+  transition: filter 0.12s ease;
+}
+
+svg polygon:hover {
+  filter: brightness(1.18);
+  cursor: pointer;
+}
