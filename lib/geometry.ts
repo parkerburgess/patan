@@ -24,6 +24,21 @@ export function hexPointsString(cx: number, cy: number, size: number): string {
 }
 
 /**
+ * Returns the 6 corner points of a pointy-top hexagon centered at (cx, cy).
+ * Corner i is at angle (60*i + 30)°.
+ */
+export function hexCornerPoints(
+  cx: number,
+  cy: number,
+  size: number,
+): Array<{ x: number; y: number }> {
+  return Array.from({ length: 6 }, (_, i) => {
+    const angle = ((60 * i + 30) * Math.PI) / 180;
+    return { x: cx + size * Math.cos(angle), y: cy + size * Math.sin(angle) };
+  });
+}
+
+/**
  * Midpoint of a hex edge in SVG pixel space.
  * Edge i lies between corner i and corner (i+1)%6.
  *
