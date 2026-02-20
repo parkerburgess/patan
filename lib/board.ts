@@ -61,25 +61,44 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+const NEIGHBOR_DELTAS = [[1,0],[-1,0],[0,1],[0,-1],[1,-1],[-1,1]] as const;
+
+function areAdjacent(a: HexCoord, b: HexCoord): boolean {
+  return NEIGHBOR_DELTAS.some(([dq, dr]) => a.q + dq === b.q && a.r + dr === b.r);
+}
+
+function hasAdjacentHighNumbers(tiles: Tile[]): boolean {
+  const highTiles = tiles.filter(t => t.dieNumber === 6 || t.dieNumber === 8);
+  for (let i = 0; i < highTiles.length; i++) {
+    for (let j = i + 1; j < highTiles.length; j++) {
+      if (areAdjacent(highTiles[i].coord, highTiles[j].coord)) return true;
+    }
+  }
+  return false;
+}
+
 // ── Board Generation ──────────────────────────────────────────────────────────
 
 export function createBoard(): BoardState {
   const resources = shuffle(RESOURCE_POOL);
-  const numbers = shuffle(NUMBER_POOL);
 
-  let numberIndex = 0;
-  const tiles: Tile[] = HEX_COORDS.map((coord, i) => {
-    const resource = resources[i];
-    const isDesert = resource === "desert";
-    return {
-      id: i + 1,
-      coord,
-      resource,
-      dieNumber: isDesert ? null : numbers[numberIndex++],
-      hasRobber: isDesert,
-      //TODO: enforce that 6s and 8s cannot be placed adjacent to each other
-    };
-  });
+  // Reshuffle number tokens until no 6 or 8 is adjacent to another 6 or 8
+  let tiles: Tile[];
+  do {
+    const numbers = shuffle(NUMBER_POOL);
+    let numberIndex = 0;
+    tiles = HEX_COORDS.map((coord, i) => {
+      const resource = resources[i];
+      const isDesert = resource === "desert";
+      return {
+        id: i + 1,
+        coord,
+        resource,
+        dieNumber: isDesert ? null : numbers[numberIndex++],
+        hasRobber: isDesert,
+      };
+    });
+  } while (hasAdjacentHighNumbers(tiles));
 
   const portTypes = shuffle(PORT_TYPE_POOL);
   const ports: Port[] = PORT_POSITIONS.map((pos, i) => ({

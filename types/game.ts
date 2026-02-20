@@ -24,3 +24,18 @@ export interface BoardState {
   tiles: Tile[];
   ports: Port[];
 }
+
+export interface Player {
+  id: number;
+  name: string;
+  color: string;
+  isHuman: boolean;
+  victoryPoints: number;
+  roadLength: number;
+  armyCount: number;
+  hasLargestArmy: boolean;
+  hasLongestRoad: boolean;
+  roadsAvailable: number;    // starts at 15
+  villagesAvailable: number; // starts at 5
+  townsAvailable: number;    // starts at 4
+}

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { createBoard } from "@/lib/board";
 import Board from "@/components/Board";
-import type { BoardState } from "@/types/game";
+import PlayerCard from "@/components/PlayerCard";
+import type { BoardState, Player } from "@/types/game";
 
 const LEGEND = [
   { color: "#2D6A2D", label: "Wood" },
@@ -14,54 +15,125 @@ const LEGEND = [
   { color: "#E8D5A3", label: "Desert" },
 ];
 
+const INITIAL_PLAYERS: Player[] = [
+  {
+    id: 1,
+    name: "You",
+    color: "#DC2626",
+    isHuman: true,
+    victoryPoints: 0,
+    roadLength: 0,
+    armyCount: 0,
+    hasLargestArmy: false,
+    hasLongestRoad: false,
+    roadsAvailable: 15,
+    villagesAvailable: 5,
+    townsAvailable: 4,
+  },
+  {
+    id: 2,
+    name: "NPC 1",
+    color: "#2563EB",
+    isHuman: false,
+    victoryPoints: 0,
+    roadLength: 0,
+    armyCount: 0,
+    hasLargestArmy: false,
+    hasLongestRoad: false,
+    roadsAvailable: 15,
+    villagesAvailable: 5,
+    townsAvailable: 4,
+  },
+  {
+    id: 3,
+    name: "NPC 2",
+    color: "#EA580C",
+    isHuman: false,
+    victoryPoints: 0,
+    roadLength: 0,
+    armyCount: 0,
+    hasLargestArmy: false,
+    hasLongestRoad: false,
+    roadsAvailable: 15,
+    villagesAvailable: 5,
+    townsAvailable: 4,
+  },
+  {
+    id: 4,
+    name: "NPC 3",
+    color: "#16A34A",
+    isHuman: false,
+    victoryPoints: 0,
+    roadLength: 0,
+    armyCount: 0,
+    hasLargestArmy: false,
+    hasLongestRoad: false,
+    roadsAvailable: 15,
+    villagesAvailable: 5,
+    townsAvailable: 4,
+  },
+];
+
 export default function HomePage() {
   const [board, setBoard] = useState<BoardState>(() => createBoard());
+  const [players] = useState<Player[]>(INITIAL_PLAYERS);
+  const [activePlayerId] = useState<number>(1);
+
+  // Human player always first, then NPCs in order
+  const orderedPlayers = [
+    ...players.filter((p) => p.isHuman),
+    ...players.filter((p) => !p.isHuman),
+  ];
 
   return (
-    <main className="min-h-screen bg-slate-900 flex flex-col items-center py-8 px-4">
-      <header className="mb-6 text-center">
-        <h1 className="text-4xl font-bold text-amber-400 tracking-wide">
-          Patan
-        </h1>
-        <p className="text-slate-400 mt-1 text-sm">
-          Standard 19-tile board · randomly generated
-        </p>
-      </header>
+    <main className="min-h-screen bg-slate-900 py-8 px-6">
+<div className="flex flex-col items-center">
+        {/* Board + Players side by side, aside stretches to board height */}
+        <div className="flex gap-5 items-stretch">
+          <aside className="flex flex-col gap-2 w-40 shrink-0">
+            {orderedPlayers.map((player) => (
+              <div key={player.id} className="flex-1 min-h-0">
+                <PlayerCard
+                  player={player}
+                  isActive={player.id === activePlayerId}
+                />
+              </div>
+            ))}
+          </aside>
 
-      <div className="w-full max-w-5xl drop-shadow-2xl">
-        <Board board={board} />
-      </div>
+          <div className="max-w-2xl w-[672px] drop-shadow-2xl shrink-0">
+            <Board board={board} />
+          </div>
+        </div>
 
-      {/* Resource legend */}
-      <div className="mt-6 flex flex-wrap gap-4 justify-center">
-        {LEGEND.map(({ color, label }) => (
-          <span key={label} className="flex items-center gap-1.5 text-slate-300 text-sm">
-            <span
-              className="inline-block w-3.5 h-3.5 rounded-sm border border-slate-600"
-              style={{ backgroundColor: color }}
-            />
-            {label}
+        {/* Controls below the board */}
+        <div className="mt-4 flex flex-wrap gap-3 justify-center">
+          {LEGEND.map(({ color, label }) => (
+            <span key={label} className="flex items-center gap-1.5 text-slate-300 text-xs">
+              <span
+                className="inline-block w-3 h-3 rounded-sm border border-slate-600"
+                style={{ backgroundColor: color }}
+              />
+              {label}
+            </span>
+          ))}
+        </div>
+
+        <div className="mt-1">
+          <span className="text-slate-600 text-xs">
+            Ports: resource = 2:1 · ? = any 3:1
           </span>
-        ))}
+        </div>
+
+        <button
+          onClick={() => setBoard(createBoard())}
+          className="mt-5 px-6 py-2.5 bg-amber-500 hover:bg-amber-400 active:bg-amber-600
+                     text-slate-900 font-bold rounded-lg transition-colors
+                     shadow-lg text-xs uppercase tracking-widest"
+        >
+          Regenerate Board
+        </button>
       </div>
-
-      {/* Port legend */}
-      <div className="mt-2 flex gap-4 justify-center">
-        <span className="text-slate-500 text-xs">Ports: specific resource = 2:1 trade · ? = any 3:1 trade</span>
-      </div>
-
-      <button
-        onClick={() => setBoard(createBoard())}
-        className="mt-8 px-7 py-3 bg-amber-500 hover:bg-amber-400 active:bg-amber-600
-                   text-slate-900 font-bold rounded-lg transition-colors
-                   shadow-lg text-sm uppercase tracking-widest"
-      >
-        Regenerate Board
-      </button>
-
-      <p className="mt-4 text-slate-700 text-xs">
-        {board.tiles.length} tiles · {board.ports.length} ports
-      </p>
     </main>
   );
 }
