@@ -104,10 +104,6 @@ export default function HexTile({ tile, size, cx, cy }: Props) {
         <clipPath id={hexClipId}>
           <polygon points={points} />
         </clipPath>
-        {/* Clip path for resource image — circle */}
-        <clipPath id={`${hexClipId}-circle`}>
-          <circle cx={cx} cy={cy} r={size * 0.75} />
-        </clipPath>
         {/* Clip path for die image — token circle */}
         {tile.dieNumber !== null && (
           <clipPath id={tokenClipId}>
@@ -116,26 +112,27 @@ export default function HexTile({ tile, size, cx, cy }: Props) {
         )}
       </defs>
 
-      {/* Hex background polygon */}
-      <polygon
-        points={points}
-        fill={fill}
-        stroke="#3D2B1F"
-        strokeWidth={2}
-      />
-
-      {/* Resource image overlay (clipped to hex) */}
+      {/* Resource image — bottom layer, clipped to hex */}
       {resourceImage && (
         <image
           href={resourceImage}
-          x={cx - size * 0.75}
-          y={cy - size * 0.75}
-          width={size * 1.5}
-          height={size * 1.5}
-          clipPath={`url(#${hexClipId}-circle)`}
-          preserveAspectRatio="xMidYMid meet"
+          x={cx - size}
+          y={cy - size}
+          width={size * 2}
+          height={size * 2}
+          clipPath={`url(#${hexClipId})`}
+          preserveAspectRatio="xMidYMid slice"
         />
       )}
+
+      {/* Hex background polygon — 50% opacity over image */}
+      <polygon
+        points={points}
+        fill={fill}
+        fillOpacity={resourceImage ? 0.7 : 1}
+        stroke="#3D2B1F"
+        strokeWidth={2}
+      />
 
       {/* Resource label — shown only when no image */}
       {!resourceImage && (
