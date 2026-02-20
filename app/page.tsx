@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { createBoard } from "@/lib/board";
+import { rollDice } from "@/lib/dice";
 import Board from "@/components/Board";
 import PlayerCard from "@/components/PlayerCard";
+import DiceDisplay from "@/components/DiceDisplay";
 import type { BoardState, Player } from "@/types/game";
 
 const EMPTY_RESOURCES = { wood: 0, brick: 0, sheep: 0, wheat: 0, stone: 0 };
@@ -84,6 +86,7 @@ export default function HomePage() {
   const [board, setBoard] = useState<BoardState>(() => createBoard());
   const [players] = useState<Player[]>(INITIAL_PLAYERS);
   const [activePlayerId] = useState<number>(1);
+  const [dice, setDice] = useState<{ die1: number; die2: number } | null>(null);
 
   // Human player always first, then NPCs in order
   const orderedPlayers = [
@@ -93,6 +96,19 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen bg-slate-900 py-8 px-6">
+      {/* Dice — fixed top-right */}
+      <div className="fixed top-3 right-3 flex items-center gap-2 bg-slate-800/90 backdrop-blur rounded-lg px-2.5 py-2 shadow-lg z-50">
+        <DiceDisplay die1={dice?.die1 ?? null} die2={dice?.die2 ?? null} />
+        <button
+          onClick={() => setDice(rollDice())}
+          className="px-2.5 py-1 bg-red-700 hover:bg-red-600 active:bg-red-800
+                     text-white font-bold rounded transition-colors
+                     text-[10px] uppercase tracking-widest"
+        >
+          Roll
+        </button>
+      </div>
+
 <div className="flex flex-col items-center">
         {/* Board + Players side by side, aside stretches to board height */}
         <div className="flex gap-5 items-stretch">
