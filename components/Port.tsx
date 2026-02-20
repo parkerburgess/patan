@@ -1,6 +1,8 @@
 "use client";
 
-import type { Port } from "@/types/game";
+import type { Port, PortType } from "@/types/game";
+import { edgeMidpoint } from "@/lib/geometry";
+import { PORT_OFFSET_RATIO, PORT_RADIUS_RATIO } from "@/lib/constants";
 
 interface Props {
   port: Port;
@@ -9,58 +11,54 @@ interface Props {
   size: number; // hex circumradius
 }
 
-const PORT_COLORS: Record<string, string> = {
+const PORT_COLORS: Record<PortType, string> = {
   generic: "#8B6914",
   wood:    "#2D6A2D",
   brick:   "#B22222",
   sheep:   "#7EC850",
   wheat:   "#DAA520",
   stone:   "#708090",
+  desert:  "#E8D5A3",
 };
 
-const PORT_SYMBOLS: Record<string, string> = {
+const PORT_SYMBOLS: Record<PortType, string> = {
   generic: "?",
   wood:    "W",
   brick:   "Br",
   sheep:   "Sh",
   wheat:   "Wh",
   stone:   "St",
+  desert:  "De",
 };
 
-const PORT_RATIOS: Record<string, string> = {
+const PORT_RATIOS: Record<PortType, string> = {
   generic: "3:1",
   wood:    "2:1",
   brick:   "2:1",
   sheep:   "2:1",
   wheat:   "2:1",
   stone:   "2:1",
+  desert:  "2:1",
 };
 
 export default function Port({ port, cx, cy, size }: Props) {
-  // Edge i = between corner i and corner (i+1)%6
-  // Pointy-top: corner i at angle (60*i + 30)°
-  const aRad = ((60 * port.edgeIndex + 30) * Math.PI) / 180;
-  const bRad = ((60 * (port.edgeIndex + 1) + 30) * Math.PI) / 180;
+  const mid = edgeMidpoint(cx, cy, size, port.edgeIndex);
 
-  // Midpoint of the edge
-  const midX = cx + size * (Math.cos(aRad) + Math.cos(bRad)) / 2;
-  const midY = cy + size * (Math.sin(aRad) + Math.sin(bRad)) / 2;
-
-  // Push port circle outward from hex center
-  const dx = midX - cx;
-  const dy = midY - cy;
+  // Push port circle outward from hex center along the edge normal
+  const dx = mid.x - cx;
+  const dy = mid.y - cy;
   const len = Math.sqrt(dx * dx + dy * dy);
-  const portCx = cx + (dx / len) * size * 1.55;
-  const portCy = cy + (dy / len) * size * 1.55;
+  const portCx = cx + (dx / len) * size * PORT_OFFSET_RATIO;
+  const portCy = cy + (dy / len) * size * PORT_OFFSET_RATIO;
 
-  const portR = size * 0.24;
+  const portR = size * PORT_RADIUS_RATIO;
   const color = PORT_COLORS[port.type];
 
   return (
     <g>
       {/* Connector line from hex edge to port */}
       <line
-        x1={midX} y1={midY}
+        x1={mid.x} y1={mid.y}
         x2={portCx} y2={portCy}
         stroke={color}
         strokeWidth={2.5}

@@ -1,6 +1,8 @@
 "use client";
 
 import type { BoardState } from "@/types/game";
+import { HEX_SIZE, BOARD_MARGIN_RATIO, SQRT3 } from "@/lib/constants";
+import { axialToPixel } from "@/lib/geometry";
 import HexTile from "./HexTile";
 import Port from "./Port";
 
@@ -8,19 +10,8 @@ interface Props {
   board: BoardState;
 }
 
-const HEX_SIZE = 70; // circumradius in SVG units
-const SQRT3 = Math.sqrt(3);
-
-// Axial (q, r) → SVG pixel coords for pointy-top hexagons
-function axialToPixel(q: number, r: number): { x: number; y: number } {
-  return {
-    x: HEX_SIZE * SQRT3 * (q + r / 2),
-    y: HEX_SIZE * 1.5 * r,
-  };
-}
-
 export default function Board({ board }: Props) {
-  const margin = HEX_SIZE * 2.2;
+  const margin = HEX_SIZE * BOARD_MARGIN_RATIO;
 
   // Board spans ±2*SQRT3*HEX_SIZE in x, ±3*HEX_SIZE in y
   const halfW = HEX_SIZE * SQRT3 * 2.5 + margin;
@@ -41,7 +32,7 @@ export default function Board({ board }: Props) {
 
       {/* Hex tiles */}
       {board.tiles.map((tile) => {
-        const { x, y } = axialToPixel(tile.coord.q, tile.coord.r);
+        const { x, y } = axialToPixel(tile.coord, HEX_SIZE);
         return (
           <HexTile key={tile.id} tile={tile} size={HEX_SIZE} cx={x} cy={y} />
         );
@@ -49,7 +40,7 @@ export default function Board({ board }: Props) {
 
       {/* Ports */}
       {board.ports.map((port, i) => {
-        const { x, y } = axialToPixel(port.hexCoord.q, port.hexCoord.r);
+        const { x, y } = axialToPixel(port.hexCoord, HEX_SIZE);
         return (
           <Port key={i} port={port} cx={x} cy={y} size={HEX_SIZE} />
         );

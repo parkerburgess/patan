@@ -1,6 +1,15 @@
 "use client";
 
-import type { Tile } from "@/types/game";
+import type { ResourceType, Tile } from "@/types/game";
+import { hexPointsString } from "@/lib/geometry";
+import {
+  TOKEN_RADIUS_RATIO,
+  TOKEN_FONT_RATIO,
+  TOKEN_DOT_RATIO,
+  TOKEN_DOT_Y_RATIO,
+  LABEL_Y_RATIO,
+  LABEL_FONT_RATIO,
+} from "@/lib/constants";
 
 interface Props {
   tile: Tile;
@@ -9,7 +18,7 @@ interface Props {
   cy: number;   // pixel center y
 }
 
-const RESOURCE_COLORS: Record<string, string> = {
+const RESOURCE_COLORS: Record<ResourceType, string> = {
   wood:   "#2D6A2D",
   brick:  "#B22222",
   sheep:  "#7EC850",
@@ -18,7 +27,7 @@ const RESOURCE_COLORS: Record<string, string> = {
   desert: "#E8D5A3",
 };
 
-const RESOURCE_LABELS: Record<string, string> = {
+const RESOURCE_LABELS: Record<ResourceType, string> = {
   wood:   "Wood",
   brick:  "Brick",
   sheep:  "Sheep",
@@ -31,7 +40,7 @@ const RESOURCE_LABELS: Record<string, string> = {
 // Drop image paths here to replace the colored hex background or number token.
 // Leave an entry absent (or undefined) to keep the default SVG rendering.
 
-const RESOURCE_IMAGES: Partial<Record<string, string>> = {
+const RESOURCE_IMAGES: Partial<Record<ResourceType, string>> = {
   wood:   "/images/wood.png",
   brick:  "/images/brick.png",
   sheep:  "/images/sheep.png",
@@ -55,11 +64,9 @@ const DIE_IMAGES: Partial<Record<number, string>> = {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-function hexPoints(cx: number, cy: number, size: number): string {
-  return Array.from({ length: 6 }, (_, i) => {
-    const angle = ((60 * i + 30) * Math.PI) / 180;
-    return `${cx + size * Math.cos(angle)},${cy + size * Math.sin(angle)}`;
-  }).join(" ");
+/** Number of probability pips for a die number (mirrors physical Catan tokens). */
+function diePips(dieNumber: number): number {
+  return 6 - Math.abs(7 - dieNumber); // 1 pip for 2/12, up to 5 pips for 6/8
 }
 
 function ProbabilityDots({
@@ -67,7 +74,7 @@ function ProbabilityDots({
 }: {
   cx: number; cy: number; dieNumber: number; isRed: boolean; dotSize: number;
 }) {
-  const pips = 6 - Math.abs(7 - dieNumber);
+  const pips = diePips(dieNumber);
   const spacing = dotSize * 2.8;
   const startX = cx - ((pips - 1) / 2) * spacing;
   return (
@@ -86,10 +93,10 @@ function ProbabilityDots({
 }
 
 export default function HexTile({ tile, size, cx, cy }: Props) {
-  const points = hexPoints(cx, cy, size);
+  const points = hexPointsString(cx, cy, size);
   const fill = RESOURCE_COLORS[tile.resource];
   const isRed = tile.dieNumber === 6 || tile.dieNumber === 8;
-  const tokenR = size * 0.28;
+  const tokenR = size * TOKEN_RADIUS_RATIO;
 
   const resourceImage = RESOURCE_IMAGES[tile.resource];
   const dieImage = tile.dieNumber !== null ? DIE_IMAGES[tile.dieNumber] : undefined;
@@ -100,11 +107,9 @@ export default function HexTile({ tile, size, cx, cy }: Props) {
   return (
     <g>
       <defs>
-        {/* Clip path for resource image — hex shape */}
         <clipPath id={hexClipId}>
           <polygon points={points} />
         </clipPath>
-        {/* Clip path for die image — token circle */}
         {tile.dieNumber !== null && (
           <clipPath id={tokenClipId}>
             <circle cx={cx} cy={cy} r={tokenR} />
@@ -125,7 +130,7 @@ export default function HexTile({ tile, size, cx, cy }: Props) {
         />
       )}
 
-      {/* Hex background polygon — 50% opacity over image */}
+      {/* Hex background polygon — partial opacity when image is present */}
       <polygon
         points={points}
         fill={fill}
@@ -138,9 +143,9 @@ export default function HexTile({ tile, size, cx, cy }: Props) {
       {!resourceImage && (
         <text
           x={cx}
-          y={cy - size * 0.52}
+          y={cy - size * LABEL_Y_RATIO}
           textAnchor="middle"
-          fontSize={size * 0.19}
+          fontSize={size * LABEL_FONT_RATIO}
           fontWeight="bold"
           fill="#ffffffcc"
           style={{ pointerEvents: "none" }}
@@ -152,7 +157,6 @@ export default function HexTile({ tile, size, cx, cy }: Props) {
       {/* Number token */}
       {tile.dieNumber !== null && (
         <>
-          {/* Token circle + die image or fallback text */}
           <circle
             cx={cx}
             cy={cy}
@@ -178,7 +182,7 @@ export default function HexTile({ tile, size, cx, cy }: Props) {
                 y={cy}
                 textAnchor="middle"
                 dominantBaseline="central"
-                fontSize={size * 0.25}
+                fontSize={size * TOKEN_FONT_RATIO}
                 fontWeight="bold"
                 fill={isRed ? "#CC0000" : "#1a1a1a"}
                 style={{ pointerEvents: "none" }}
@@ -187,10 +191,10 @@ export default function HexTile({ tile, size, cx, cy }: Props) {
               </text>
               <ProbabilityDots
                 cx={cx}
-                cy={cy + tokenR * 0.6}
+                cy={cy + tokenR * TOKEN_DOT_Y_RATIO}
                 dieNumber={tile.dieNumber}
                 isRed={isRed}
-                dotSize={size * 0.026}
+                dotSize={size * TOKEN_DOT_RATIO}
               />
             </>
           )}

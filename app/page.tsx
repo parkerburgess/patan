@@ -6,6 +6,8 @@ import Board from "@/components/Board";
 import PlayerCard from "@/components/PlayerCard";
 import type { BoardState, Player } from "@/types/game";
 
+const EMPTY_RESOURCES = { wood: 0, brick: 0, sheep: 0, wheat: 0, stone: 0 };
+
 const LEGEND = [
   { color: "#2D6A2D", label: "Wood" },
   { color: "#B22222", label: "Brick" },
@@ -29,6 +31,7 @@ const INITIAL_PLAYERS: Player[] = [
     roadsAvailable: 15,
     villagesAvailable: 5,
     townsAvailable: 4,
+    resources: { ...EMPTY_RESOURCES },
   },
   {
     id: 2,
@@ -43,6 +46,7 @@ const INITIAL_PLAYERS: Player[] = [
     roadsAvailable: 15,
     villagesAvailable: 5,
     townsAvailable: 4,
+    resources: { ...EMPTY_RESOURCES },
   },
   {
     id: 3,
@@ -57,6 +61,7 @@ const INITIAL_PLAYERS: Player[] = [
     roadsAvailable: 15,
     villagesAvailable: 5,
     townsAvailable: 4,
+    resources: { ...EMPTY_RESOURCES },
   },
   {
     id: 4,
@@ -71,6 +76,7 @@ const INITIAL_PLAYERS: Player[] = [
     roadsAvailable: 15,
     villagesAvailable: 5,
     townsAvailable: 4,
+    resources: { ...EMPTY_RESOURCES },
   },
 ];
 

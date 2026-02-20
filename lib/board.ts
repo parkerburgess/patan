@@ -1,4 +1,7 @@
-import type { Tile, Port, BoardState, ResourceType, PortType, HexCoord } from "@/types/game";
+import type {
+  Tile, Port, BoardState, VillageLocation, RoadLocation,
+  ResourceType, PortType, HexCoord,
+} from "@/types/game";
 
 // ── Axial coords for the 19 hex tiles ────────────────────────────────────────
 // Hex-shaped layout: all (q, r) satisfying |q| ≤ 2, |r| ≤ 2, |q+r| ≤ 2
@@ -30,21 +33,21 @@ const RESOURCE_POOL: ResourceType[] = [
 const NUMBER_POOL: number[] = [2, 3, 3, 4, 4, 5, 5, 6, 6, 8, 8, 9, 9, 10, 10, 11, 11, 12];
 
 // 9 fixed border port positions (types are shuffled separately)
-// Pointy-top corners at (60*i + 30)°, so edge i is between corners i and i+1:
-//   edge 0 = SE, edge 1 = SW, edge 2 = W, edge 3 = NW, edge 4 = NE, edge 5 = E
+// Edge directions for pointy-top hexagons (SVG y-down):
+//   0 = SE,  1 = SW,  2 = W,  3 = NW,  4 = NE,  5 = E
 const PORT_POSITIONS: Array<{ hexCoord: HexCoord; edgeIndex: number }> = [
-  { hexCoord: { q: 0, r: -2 }, edgeIndex: 3 },   // top-left → NW face (outer)            // good
-  { hexCoord: { q: 1, r: -2 }, edgeIndex: 4 },   // top-right → NE face (outer)
-  { hexCoord: { q: 2, r: -1 }, edgeIndex: 4 },   // upper-right → E face (outer)
-  { hexCoord: { q: 2, r: 0 }, edgeIndex: 5 },    // far-right middle → SE face (outer)
-  { hexCoord: { q: 1, r: 1 }, edgeIndex: 0 },    // lower-right → SE face (outer)
-  { hexCoord: { q: -1, r: 2 }, edgeIndex: 0 },    // bottom-right → SW face (outer)
-  { hexCoord: { q: -2, r: 2 }, edgeIndex: 1 },   // bottom-left → SW face (outer)
-  { hexCoord: { q: -2, r: 1 }, edgeIndex: 2 },   // lower-left → W face (outer)
-  { hexCoord: { q: -1, r: -1 }, edgeIndex: 2 },   // far-left middle → W face (outer)
+  { hexCoord: { q: 0,  r: -2 }, edgeIndex: 3 }, // top-left    → NW face
+  { hexCoord: { q: 1,  r: -2 }, edgeIndex: 4 }, // top         → NE face
+  { hexCoord: { q: 2,  r: -1 }, edgeIndex: 4 }, // upper-right → NE face
+  { hexCoord: { q: 2,  r:  0 }, edgeIndex: 5 }, // right       → E face
+  { hexCoord: { q: 1,  r:  1 }, edgeIndex: 0 }, // lower-right → SE face
+  { hexCoord: { q: -1, r:  2 }, edgeIndex: 0 }, // bottom      → SE face
+  { hexCoord: { q: -2, r:  2 }, edgeIndex: 1 }, // bottom-left → SW face
+  { hexCoord: { q: -2, r:  1 }, edgeIndex: 2 }, // left        → W face
+  { hexCoord: { q: -1, r: -1 }, edgeIndex: 2 }, // upper-left  → W face
 ];
 
-// 9 port types: 4 generic (3:1) + one 2:1 for each resource
+// 9 port types: 4 generic (3:1) + one 2:1 for each playable resource
 const PORT_TYPE_POOL: PortType[] = [
   "generic", "generic", "generic", "generic",
   "wood", "brick", "sheep", "wheat", "stone",
@@ -61,7 +64,7 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-const NEIGHBOR_DELTAS = [[1,0],[-1,0],[0,1],[0,-1],[1,-1],[-1,1]] as const;
+const NEIGHBOR_DELTAS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, -1], [-1, 1]] as const;
 
 function areAdjacent(a: HexCoord, b: HexCoord): boolean {
   return NEIGHBOR_DELTAS.some(([dq, dr]) => a.q + dq === b.q && a.r + dr === b.r);
@@ -77,13 +80,28 @@ function hasAdjacentHighNumbers(tiles: Tile[]): boolean {
   return false;
 }
 
+// ── Village & Road Location Stubs ─────────────────────────────────────────────
+// A standard Catan board has 54 village locations (hex vertices) and
+// 72 road locations (hex edges). Computing their adjacency graph from axial
+// coordinates is deferred to a future phase.
+
+function createVillageLocations(): VillageLocation[] {
+  return [];
+}
+
+function createRoadLocations(): RoadLocation[] {
+  return [];
+}
+
 // ── Board Generation ──────────────────────────────────────────────────────────
 
 export function createBoard(): BoardState {
   const resources = shuffle(RESOURCE_POOL);
 
-  // Reshuffle number tokens until no 6 or 8 is adjacent to another 6 or 8
+  // Reshuffle number tokens until no 6 or 8 is adjacent to another 6 or 8.
+  // Converges quickly in practice; bounded by the low probability of repeated failures.
   let tiles: Tile[];
+  let attempts = 0;
   do {
     const numbers = shuffle(NUMBER_POOL);
     let numberIndex = 0;
@@ -98,6 +116,8 @@ export function createBoard(): BoardState {
         hasRobber: isDesert,
       };
     });
+    attempts++;
+    if (attempts > 100) break; // safety valve; valid layouts exist so this is unreachable in practice
   } while (hasAdjacentHighNumbers(tiles));
 
   const portTypes = shuffle(PORT_TYPE_POOL);
@@ -107,5 +127,10 @@ export function createBoard(): BoardState {
     edgeIndex: pos.edgeIndex,
   }));
 
-  return { tiles, ports };
+  return {
+    tiles,
+    ports,
+    villageLocations: createVillageLocations(),
+    roadLocations: createRoadLocations(),
+  };
 }
