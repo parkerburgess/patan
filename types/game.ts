@@ -1,4 +1,10 @@
 export type ResourceType = "wood" | "brick" | "sheep" | "wheat" | "stone" | "desert";
+export type DevCardType = "knight" | "victoryPoint" | "roadBuilding" | "yearOfPlenty" | "monopoly";
+export type TurnPhase = "pre-roll" | "actions";
+
+export interface DevCard {
+  type: DevCardType;
+}
 export type PlayableResource = Exclude<ResourceType, "desert">;
 export type PortType = ResourceType | "generic";
 
@@ -63,4 +69,5 @@ export interface Player {
   villagesAvailable: number; // starts at 5
   townsAvailable: number;    // starts at 4
   resources: Record<PlayableResource, number>;
+  devCards: DevCard[];
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createBoard } from "@/lib/board";
 import { rollDice } from "@/lib/dice";
+import { buildDevDeck } from "@/lib/devDeck";
 import {
   canPlaceVillage, canPlaceRoad, canPlaceTown,
   placeVillage, placeRoad, placeTown,
@@ -10,7 +11,68 @@ import {
 import Board from "@/components/Board";
 import PlayerCard from "@/components/PlayerCard";
 import DiceDisplay from "@/components/DiceDisplay";
-import type { BoardState, Player } from "@/types/game";
+import type { BoardState, Player, DevCard, PlayableResource, TurnPhase } from "@/types/game";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Returns one resource per non-desert tile adjacent to the given village location. */
+function collectSetupResources(
+  board: BoardState,
+  locationId: number,
+): Record<PlayableResource, number> {
+  const delta: Record<PlayableResource, number> = { wood: 0, brick: 0, sheep: 0, wheat: 0, stone: 0 };
+  const loc = board.villageLocations.find(l => l.id === locationId);
+  if (!loc) return delta;
+  for (const tileId of loc.adjacentTileIds) {
+    const tile = board.tiles.find(t => t.id === tileId);
+    if (tile && tile.resource !== "desert") {
+      delta[tile.resource as PlayableResource]++;
+    }
+  }
+  return delta;
+}
+
+function addResources(
+  a: Record<PlayableResource, number>,
+  b: Record<PlayableResource, number>,
+): Record<PlayableResource, number> {
+  return {
+    wood:  a.wood  + b.wood,
+    brick: a.brick + b.brick,
+    sheep: a.sheep + b.sheep,
+    wheat: a.wheat + b.wheat,
+    stone: a.stone + b.stone,
+  };
+}
+
+function distributeResources(board: BoardState, players: Player[], rollTotal: number): Player[] {
+  const matchingTileIds = new Set(
+    board.tiles.filter(t => t.dieNumber === rollTotal && !t.hasRobber).map(t => t.id)
+  );
+  if (matchingTileIds.size === 0) return players;
+  return players.map(player => {
+    const delta: Record<PlayableResource, number> = { wood: 0, brick: 0, sheep: 0, wheat: 0, stone: 0 };
+    for (const loc of board.villageLocations) {
+      if (loc.ownerId !== player.id) continue;
+      const mult = loc.isTown ? 2 : loc.isVillage ? 1 : 0;
+      if (mult === 0) continue;
+      for (const tileId of loc.adjacentTileIds) {
+        if (!matchingTileIds.has(tileId)) continue;
+        const tile = board.tiles.find(t => t.id === tileId)!;
+        if (tile.resource !== "desert")
+          delta[tile.resource as PlayableResource] += mult;
+      }
+    }
+    return Object.values(delta).some(v => v > 0)
+      ? { ...player, resources: addResources(player.resources, delta) }
+      : player;
+  });
+}
+
+function processRobber(board: BoardState): BoardState {
+  // TODO: move robber, discard logic
+  return board;
+}
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -31,28 +93,28 @@ const INITIAL_PLAYERS: Player[] = [
     victoryPoints: 0, roadLength: 0, armyCount: 0,
     hasLargestArmy: false, hasLongestRoad: false,
     roadsAvailable: 15, villagesAvailable: 5, townsAvailable: 4,
-    resources: { ...EMPTY_RESOURCES },
+    resources: { ...EMPTY_RESOURCES }, devCards: [],
   },
   {
     id: 2, name: "NPC 1", color: "#2563EB", isHuman: false,
     victoryPoints: 0, roadLength: 0, armyCount: 0,
     hasLargestArmy: false, hasLongestRoad: false,
     roadsAvailable: 15, villagesAvailable: 5, townsAvailable: 4,
-    resources: { ...EMPTY_RESOURCES },
+    resources: { ...EMPTY_RESOURCES }, devCards: [],
   },
   {
     id: 3, name: "NPC 2", color: "#EA580C", isHuman: false,
     victoryPoints: 0, roadLength: 0, armyCount: 0,
     hasLargestArmy: false, hasLongestRoad: false,
     roadsAvailable: 15, villagesAvailable: 5, townsAvailable: 4,
-    resources: { ...EMPTY_RESOURCES },
+    resources: { ...EMPTY_RESOURCES }, devCards: [],
   },
   {
     id: 4, name: "NPC 3", color: "#16A34A", isHuman: false,
     victoryPoints: 0, roadLength: 0, armyCount: 0,
     hasLargestArmy: false, hasLongestRoad: false,
     roadsAvailable: 15, villagesAvailable: 5, townsAvailable: 4,
-    resources: { ...EMPTY_RESOURCES },
+    resources: { ...EMPTY_RESOURCES }, devCards: [],
   },
 ];
 
@@ -64,11 +126,14 @@ const SETUP_ORDER = [0, 1, 2, 3, 3, 2, 1, 0];
 export default function HomePage() {
   const [board, setBoard] = useState<BoardState>(() => createBoard());
   const [players, setPlayers] = useState<Player[]>(INITIAL_PLAYERS);
+  const [devDeck, setDevDeck] = useState<DevCard[]>(() => buildDevDeck());
   const [gamePhase, setGamePhase] = useState<"setup" | "playing">("setup");
   const [setupTurnIndex, setSetupTurnIndex] = useState(0);
   const [placementMode, setPlacementMode] = useState<"village" | "town" | "road" | null>("village");
   const [setupLastVillageId, setSetupLastVillageId] = useState<number | null>(null);
   const [dice, setDice] = useState<{ die1: number; die2: number } | null>(null);
+  const [activePlayerIdx, setActivePlayerIdx] = useState(0);
+  const [turnPhase, setTurnPhase] = useState<TurnPhase>("pre-roll");
 
   // Refs so NPC setTimeout callback sees current board/players without stale closure
   const boardRef = useRef(board);
@@ -78,7 +143,7 @@ export default function HomePage() {
 
   // ── Derived state ────────────────────────────────────────────────────────────
 
-  const currentPlayerIdx = gamePhase === "setup" ? SETUP_ORDER[setupTurnIndex] : 0;
+  const currentPlayerIdx = gamePhase === "setup" ? SETUP_ORDER[setupTurnIndex] : activePlayerIdx;
   const currentPlayer = players[currentPlayerIdx];
 
   const orderedPlayers = [
@@ -123,11 +188,14 @@ export default function HomePage() {
       }
 
       setBoard(newBoard);
-      setPlayers(ps.map((p, idx) =>
-        idx === playerIdx
-          ? { ...p, victoryPoints: p.victoryPoints + 1, villagesAvailable: p.villagesAvailable - 1, roadsAvailable: p.roadsAvailable - 1 }
-          : p
-      ));
+      setPlayers(ps.map((p, idx) => {
+        if (idx !== playerIdx) return p;
+        const base = { ...p, victoryPoints: p.victoryPoints + 1, villagesAvailable: p.villagesAvailable - 1, roadsAvailable: p.roadsAvailable - 1 };
+        if (setupTurnIndex >= 4) {
+          return { ...base, resources: addResources(p.resources, collectSetupResources(b, village.id)) };
+        }
+        return base;
+      }));
 
       if (setupTurnIndex >= 7) {
         setGamePhase("playing");
@@ -140,6 +208,31 @@ export default function HomePage() {
     return () => clearTimeout(timer);
   }, [gamePhase, setupTurnIndex]); // intentionally excludes board/players — use refs instead
 
+  // ── NPC auto-play during playing phase ───────────────────────────────────────
+
+  useEffect(() => {
+    if (gamePhase !== "playing") return;
+    if (playersRef.current[activePlayerIdx].isHuman) return;
+
+    const rollTimer = setTimeout(() => {
+      const result = rollDice();
+      setDice(result);
+      if (result.total !== 7) {
+        setPlayers(prev => distributeResources(boardRef.current, prev, result.total));
+      } else {
+        setBoard(prev => processRobber(prev));
+      }
+      const endTimer = setTimeout(() => {
+        setActivePlayerIdx(prev => (prev + 1) % playersRef.current.length);
+        setTurnPhase("pre-roll");
+        setDice(null);
+      }, 600);
+      return () => clearTimeout(endTimer);
+    }, 500);
+
+    return () => clearTimeout(rollTimer);
+  }, [gamePhase, activePlayerIdx]); // turnPhase intentionally excluded; NPC skips actions phase
+
   // ── Placement handlers ───────────────────────────────────────────────────────
 
   function handleVillagePlace(locationId: number) {
@@ -148,11 +241,14 @@ export default function HomePage() {
 
     const newBoard = placeVillage(board, locationId, currentPlayer.id);
     setBoard(newBoard);
-    setPlayers(prev => prev.map((p, idx) =>
-      idx === currentPlayerIdx
-        ? { ...p, victoryPoints: p.victoryPoints + 1, villagesAvailable: p.villagesAvailable - 1 }
-        : p
-    ));
+    setPlayers(prev => prev.map((p, idx) => {
+      if (idx !== currentPlayerIdx) return p;
+      const base = { ...p, victoryPoints: p.victoryPoints + 1, villagesAvailable: p.villagesAvailable - 1 };
+      if (isSetup && setupTurnIndex >= 4) {
+        return { ...base, resources: addResources(p.resources, collectSetupResources(board, locationId)) };
+      }
+      return base;
+    }));
 
     if (isSetup) {
       setSetupLastVillageId(locationId);
@@ -198,14 +294,66 @@ export default function HomePage() {
     setPlacementMode(null);
   }
 
+  function handleRollDice() {
+    if (turnPhase !== "pre-roll") return;
+    const result = rollDice();
+    setDice(result);
+    if (result.total === 7) {
+      setBoard(prev => processRobber(prev));
+    } else {
+      setPlayers(prev => distributeResources(board, prev, result.total));
+    }
+    setTurnPhase("actions");
+  }
+
+  function handleEndTurn() {
+    setActivePlayerIdx(prev => (prev + 1) % players.length);
+    setTurnPhase("pre-roll");
+    setDice(null);
+    setPlacementMode(null);
+  }
+
+  function handleDrawDevCard() {
+    if (devDeck.length === 0) return;
+    const [card, ...rest] = devDeck;
+    setDevDeck(rest);
+    setPlayers(prev => prev.map((p, idx) =>
+      idx === currentPlayerIdx ? { ...p, devCards: [...p.devCards, card] } : p
+    ));
+  }
+
+  function handleInitiateTrade() {
+    // TODO: open trade UI
+  }
+
+  function handlePlayKnight() {
+    // Knight can be played before or after the roll
+    setPlayers(prev => prev.map((p, idx) => {
+      if (idx !== currentPlayerIdx) return p;
+      const ki = p.devCards.findIndex(c => c.type === "knight");
+      if (ki === -1) return p;
+      const cards = [...p.devCards];
+      cards.splice(ki, 1);
+      return { ...p, devCards: cards, armyCount: p.armyCount + 1 };
+    }));
+    setBoard(prev => processRobber(prev));
+  }
+
+  function handlePlayDevCard() {
+    // TODO: show card-selection UI and dispatch per DevCardType
+  }
+
   function handleRegenerateBoard() {
     setBoard(createBoard());
     setPlayers(INITIAL_PLAYERS);
+    setDevDeck(buildDevDeck());
     setGamePhase("setup");
     setSetupTurnIndex(0);
     setPlacementMode(null);
     setSetupLastVillageId(null);
     setDice(null);
+    setActivePlayerIdx(0);
+    setTurnPhase("pre-roll");
   }
 
   // ── Derived UI values ────────────────────────────────────────────────────────
@@ -220,27 +368,52 @@ export default function HomePage() {
       {/* Dice — fixed top-right */}
       <div className="fixed top-3 right-3 flex items-center gap-2 bg-slate-800/90 backdrop-blur rounded-lg px-2.5 py-2 shadow-lg z-50">
         <DiceDisplay die1={dice?.die1 ?? null} die2={dice?.die2 ?? null} />
+        {gamePhase === "playing" && currentPlayer.isHuman && currentPlayer.devCards.some(c => c.type === "knight") && (
+          <button
+            onClick={handlePlayKnight}
+            className="px-2.5 py-1 bg-purple-700 hover:bg-purple-600 active:bg-purple-800
+                       text-white font-bold rounded transition-colors
+                       text-[10px] uppercase tracking-widest"
+          >
+            Knight
+          </button>
+        )}
         <button
-          onClick={() => setDice(rollDice())}
+          onClick={handleRollDice}
+          disabled={gamePhase === "playing" && (turnPhase === "actions" || !currentPlayer.isHuman)}
           className="px-2.5 py-1 bg-red-700 hover:bg-red-600 active:bg-red-800
                      text-white font-bold rounded transition-colors
-                     text-[10px] uppercase tracking-widest"
+                     text-[10px] uppercase tracking-widest
+                     disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Roll
         </button>
       </div>
 
       <div className="flex flex-col items-center">
-        {/* Setup status banner */}
-        {gamePhase === "setup" && (
+        {/* Status banner */}
+        {(gamePhase === "setup" || gamePhase === "playing") && (
           <div className="mb-3 px-5 py-2 bg-slate-700 rounded-lg text-sm text-white font-medium shadow">
-            <span className="text-slate-400 mr-1">Setup —</span>
-            <span style={{ color: currentPlayer.color }} className="font-bold mr-1">
-              {currentPlayer.name}:
-            </span>
-            {currentPlayer.isHuman
-              ? (placementMode === "road" ? "Place a road" : "Place a village")
-              : "Placing…"}
+            {gamePhase === "setup" ? (
+              <>
+                <span className="text-slate-400 mr-1">Setup —</span>
+                <span style={{ color: currentPlayer.color }} className="font-bold mr-1">
+                  {currentPlayer.name}:
+                </span>
+                {currentPlayer.isHuman
+                  ? (placementMode === "road" ? "Place a road" : "Place a village")
+                  : "Placing…"}
+              </>
+            ) : (
+              <>
+                <span style={{ color: currentPlayer.color }} className="font-bold mr-1">
+                  {currentPlayer.name}
+                </span>
+                <span className="text-slate-300">
+                  {turnPhase === "pre-roll" ? "— Roll the dice" : "— Take your actions"}
+                </span>
+              </>
+            )}
           </div>
         )}
 
@@ -266,27 +439,62 @@ export default function HomePage() {
               placementMode={activePlacementMode}
               setupLastVillageId={setupLastVillageId}
               onVillagePlace={handleVillagePlace}
+              onTownPlace={handleTownPlace}
               onRoadPlace={handleRoadPlace}
             />
           </div>
         </div>
 
-        {/* Playing-phase placement buttons */}
+        {/* Playing-phase action bar */}
         {gamePhase === "playing" && (
-          <div className="mt-4 flex gap-2">
-            {(["village", "town", "road"] as const).map((mode) => (
+          <div className="mt-4 flex flex-col items-center gap-2">
+            {turnPhase === "actions" && currentPlayer.isHuman && (
+              <div className="flex gap-2 flex-wrap justify-center">
+                {(["village", "town", "road"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setPlacementMode(prev => prev === mode ? null : mode)}
+                    className={`px-4 py-2 rounded-lg font-semibold text-xs uppercase tracking-widest transition-colors ${
+                      placementMode === mode
+                        ? "bg-yellow-400 text-slate-900 shadow-[0_0_12px_rgba(250,204,21,0.5)]"
+                        : "bg-slate-700 text-slate-200 hover:bg-slate-600"
+                    }`}
+                  >
+                    Place {mode === "village" ? "Village" : mode === "town" ? "Town" : "Road"}
+                  </button>
+                ))}
+                <button
+                  onClick={handlePlayDevCard}
+                  className="px-4 py-2 rounded-lg font-semibold text-xs uppercase tracking-widest transition-colors bg-slate-700 text-slate-200 hover:bg-slate-600"
+                >
+                  Play Dev Card
+                </button>
+                <button
+                  onClick={handleDrawDevCard}
+                  disabled={devDeck.length === 0}
+                  className="px-4 py-2 rounded-lg font-semibold text-xs uppercase tracking-widest transition-colors bg-slate-700 text-slate-200 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Draw Dev Card ({devDeck.length})
+                </button>
+                <button
+                  onClick={handleInitiateTrade}
+                  className="px-4 py-2 rounded-lg font-semibold text-xs uppercase tracking-widest transition-colors bg-slate-700 text-slate-200 hover:bg-slate-600"
+                >
+                  Trade
+                </button>
+              </div>
+            )}
+            {turnPhase === "actions" && currentPlayer.isHuman && (
               <button
-                key={mode}
-                onClick={() => setPlacementMode(prev => prev === mode ? null : mode)}
-                className={`px-4 py-2 rounded-lg font-semibold text-xs uppercase tracking-widest transition-colors ${
-                  placementMode === mode
-                    ? "bg-yellow-400 text-slate-900 shadow-[0_0_12px_rgba(250,204,21,0.5)]"
-                    : "bg-slate-700 text-slate-200 hover:bg-slate-600"
-                }`}
+                onClick={handleEndTurn}
+                className="px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transition-colors bg-green-700 hover:bg-green-600 active:bg-green-800 text-white shadow-lg"
               >
-                Place {mode === "village" ? "Village" : mode === "town" ? "Town" : "Road"}
+                End Turn
               </button>
-            ))}
+            )}
+            {!currentPlayer.isHuman && (
+              <p className="text-slate-400 text-xs">{currentPlayer.name} is thinking…</p>
+            )}
           </div>
         )}
 

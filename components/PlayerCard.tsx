@@ -48,6 +48,15 @@ export default function PlayerCard({ player, isActive }: Props) {
         <span>Vil:<span className="text-slate-100">{player.villagesAvailable}</span></span>
         <span>Twn:<span className="text-slate-100">{player.townsAvailable}</span></span>
       </div>
+
+      {/* Resources */}
+      <div className="border-t border-white/30 pt-1 flex justify-between text-[9px] text-white/60">
+        {(["wood","brick","sheep","wheat","stone"] as const).map(r => (
+          <span key={r}>
+            {r.slice(0, 2)}<span className="text-white">{player.resources[r]}</span>
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

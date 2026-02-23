@@ -7,7 +7,8 @@ interface Props {
   mode: "place-village" | "place-town" | "idle";
   /** Whether this spot is a valid click target in the current placement mode. */
   isValid: boolean;
-  onClick: () => void;
+  onVillageClick: () => void;
+  onTownClick: () => void;
 }
 
 const VILLAGE_R = 19;
@@ -18,7 +19,7 @@ function diamondPoints(x: number, y: number, r: number): string {
   return `${x},${y - r} ${x + r},${y} ${x},${y + r} ${x - r},${y}`;
 }
 
-export default function VillageSpot({ location, playerColor, mode, isValid, onClick }: Props) {
+export default function VillageSpot({ location, playerColor, mode, isValid, onVillageClick, onTownClick }: Props) {
   const { x, y, isVillage, isTown } = location;
   const owned = location.ownerId !== null;
 
@@ -55,7 +56,7 @@ export default function VillageSpot({ location, playerColor, mode, isValid, onCl
             fill={playerColor}
             stroke="white" strokeWidth={2} strokeOpacity={0.9}
             cursor="pointer"
-            onClick={onClick}
+            onClick={onTownClick}
           />
         );
       }
@@ -72,7 +73,7 @@ export default function VillageSpot({ location, playerColor, mode, isValid, onCl
         fill="white" fillOpacity={0.35}
         stroke="white" strokeWidth={2} strokeOpacity={0.8}
         cursor="pointer"
-        onClick={onClick}
+        onClick={onVillageClick}
       />
     );
   }

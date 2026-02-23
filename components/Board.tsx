@@ -19,6 +19,7 @@ interface Props {
   /** During setup road phase, only show road spots adjacent to this village. */
   setupLastVillageId?: number | null;
   onVillagePlace: (locationId: number) => void;
+  onTownPlace: (locationId: number) => void;
   onRoadPlace: (locationId: number) => void;
 }
 
@@ -69,6 +70,7 @@ export default function Board({
   placementMode,
   setupLastVillageId = null,
   onVillagePlace,
+  onTownPlace,
   onRoadPlace,
 }: Props) {
   const margin = HEX_SIZE * BOARD_MARGIN_RATIO;
@@ -208,7 +210,8 @@ export default function Board({
             playerColor={owner?.color ?? null}
             mode={spotMode}
             isValid={validVillageIds.has(loc.id)}
-            onClick={() => onVillagePlace(loc.id)}
+            onVillageClick={() => onVillagePlace(loc.id)}
+            onTownClick={() => onTownPlace(loc.id)}
           />
         );
       })}
