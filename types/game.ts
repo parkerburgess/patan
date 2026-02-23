@@ -53,6 +53,7 @@ export interface BoardState {
   ports: Port[];
   villageLocations: VillageLocation[]; // 54 vertex positions
   roadLocations: RoadLocation[];       // 72 edge positions
+  startingPlayerIdx: number;           // randomly chosen at board creation
 }
 
 export interface Player {

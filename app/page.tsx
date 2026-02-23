@@ -118,9 +118,6 @@ const INITIAL_PLAYERS: Player[] = [
   },
 ];
 
-/** P1→P2→P3→P4→P4→P3→P2→P1 snake order (player array indices, 0-based). */
-const SETUP_ORDER = [0, 1, 2, 3, 3, 2, 1, 0];
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
@@ -132,7 +129,7 @@ export default function HomePage() {
   const [placementMode, setPlacementMode] = useState<"village" | "town" | "road" | null>("village");
   const [setupLastVillageId, setSetupLastVillageId] = useState<number | null>(null);
   const [dice, setDice] = useState<{ die1: number; die2: number } | null>(null);
-  const [activePlayerIdx, setActivePlayerIdx] = useState(0);
+  const [activePlayerIdx, setActivePlayerIdx] = useState(board.startingPlayerIdx);
   const [turnPhase, setTurnPhase] = useState<TurnPhase>("pre-roll");
 
   // Refs so NPC setTimeout callback sees current board/players without stale closure
@@ -143,7 +140,9 @@ export default function HomePage() {
 
   // ── Derived state ────────────────────────────────────────────────────────────
 
-  const currentPlayerIdx = gamePhase === "setup" ? SETUP_ORDER[setupTurnIndex] : activePlayerIdx;
+  /// TODO remove commented code below
+  //const currentPlayerIdx = gamePhase === "setup" ? SETUP_ORDER[setupTurnIndex] : activePlayerIdx;
+  const currentPlayerIdx = activePlayerIdx;
   const currentPlayer = players[currentPlayerIdx];
 
   const orderedPlayers = [
@@ -155,8 +154,9 @@ export default function HomePage() {
 
   useEffect(() => {
     if (gamePhase !== "setup") return;
-    const playerIdx = SETUP_ORDER[setupTurnIndex];
-    if (playersRef.current[playerIdx].isHuman) {
+
+    setActivePlayerIdx(prev => (prev + 1) % players.length);
+    if (playersRef.current[activePlayerIdx].isHuman) {
       setPlacementMode("village");
       return;
     }
@@ -165,7 +165,7 @@ export default function HomePage() {
     const timer = setTimeout(() => {
       const b = boardRef.current;
       const ps = playersRef.current;
-      const player = ps[playerIdx];
+      const player = ps[activePlayerIdx];
 
       // Pick a random valid village location
       const validVillages = b.villageLocations.filter(loc =>
@@ -189,15 +189,18 @@ export default function HomePage() {
 
       setBoard(newBoard);
       setPlayers(ps.map((p, idx) => {
-        if (idx !== playerIdx) return p;
+        if (idx !== activePlayerIdx) return p;
         const base = { ...p, victoryPoints: p.victoryPoints + 1, villagesAvailable: p.villagesAvailable - 1, roadsAvailable: p.roadsAvailable - 1 };
+        /// TODO refactor this to not use setupTurnIndex - maybe use player victory points === 1
         if (setupTurnIndex >= 4) {
           return { ...base, resources: addResources(p.resources, collectSetupResources(b, village.id)) };
         }
         return base;
       }));
-
+      /// TODO:  is this testing the index every turn for the entire game?  Then maybe look at gamePhase =="startUp"
       if (setupTurnIndex >= 7) {
+        /// TODO: the line below should not be needed, just increment to the next player;  or has it already been incremented?
+        setActivePlayerIdx(boardRef.current.startingPlayerIdx);
         setGamePhase("playing");
         setPlacementMode(null);
       } else {
@@ -233,7 +236,7 @@ export default function HomePage() {
     return () => clearTimeout(rollTimer);
   }, [gamePhase, activePlayerIdx]); // turnPhase intentionally excluded; NPC skips actions phase
 
-  // ── Placement handlers ───────────────────────────────────────────────────────
+  // ── turn action handlers ───────────────────────────────────────────────────────
 
   function handleVillagePlace(locationId: number) {
     const isSetup = gamePhase === "setup";
@@ -271,7 +274,9 @@ export default function HomePage() {
     setSetupLastVillageId(null);
 
     if (isSetup) {
+      /// TODO: why are we doing this again
       if (setupTurnIndex >= 7) {
+        setActivePlayerIdx(board.startingPlayerIdx);
         setGamePhase("playing");
         setPlacementMode(null);
       } else {

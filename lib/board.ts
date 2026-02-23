@@ -231,5 +231,6 @@ export function createBoard(): BoardState {
     ports,
     villageLocations,
     roadLocations,
+    startingPlayerIdx: Math.floor(Math.random() * 4),
   };
 }
