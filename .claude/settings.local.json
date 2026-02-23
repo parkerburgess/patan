@@ -6,7 +6,8 @@
       "Bash(npx create-next-app:*)",
       "Bash(npm install:*)",
       "Bash(curl:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npm run build:*)"
     ]
   }
 }

@@ -41,12 +41,12 @@ const RESOURCE_LABELS: Record<ResourceType, string> = {
 // Leave an entry absent (or undefined) to keep the default SVG rendering.
 
 const RESOURCE_IMAGES: Partial<Record<ResourceType, string>> = {
-  wood:   "/images/wood.png",
-  brick:  "/images/brick.png",
-  sheep:  "/images/sheep.png",
-  wheat:  "/images/wheat.png",
-  stone:  "/images/stone.png",
-  desert: "/images/desert.png",
+ // wood:   "/images/wood.png",
+ // brick:  "/images/brick.png",
+ // sheep:  "/images/sheep.png",
+ // wheat:  "/images/wheat.png",
+ // stone:  "/images/stone.png",
+ // desert: "/images/desert.png",
 };
 
 const DIE_IMAGES: Partial<Record<number, string>> = {
@@ -117,33 +117,34 @@ export default function HexTile({ tile, size, cx, cy }: Props) {
         )}
       </defs>
 
-      {/* Resource image — bottom layer, clipped to hex */}
+     
+
+      {/* Hex background polygon */}
+      <polygon
+        points={points}
+        fill={fill}
+        stroke="#3D2B1F"
+        strokeWidth={2}
+      />
+
+       {/* Resource image  clipped to hex */}
       {resourceImage && (
         <image
           href={resourceImage}
-          x={cx - size}
-          y={cy - size}
-          width={size * 2}
-          height={size * 2}
+          x={cx - size * .5}
+          y={cy - size * .25}
+          width={size * 1}
+          height={size * 1}
           clipPath={`url(#${hexClipId})`}
           preserveAspectRatio="xMidYMid slice"
         />
       )}
 
-      {/* Hex background polygon — partial opacity when image is present */}
-      <polygon
-        points={points}
-        fill={fill}
-        fillOpacity={resourceImage ? 0.7 : 1}
-        stroke="#3D2B1F"
-        strokeWidth={2}
-      />
-
       {/* Resource label — shown only when no image */}
       {!resourceImage && (
         <text
           x={cx}
-          y={cy - size * LABEL_Y_RATIO}
+          y={cy}
           textAnchor="middle"
           fontSize={size * LABEL_FONT_RATIO}
           fontWeight="bold"
@@ -159,9 +160,10 @@ export default function HexTile({ tile, size, cx, cy }: Props) {
         <>
           <circle
             cx={cx}
-            cy={cy}
+            cy={cy - size * .5}
             r={tokenR}
             fill="#F5F0DC"
+            fillOpacity={0.45}
             stroke="#8B7355"
             strokeWidth={1.5}
           />
@@ -169,7 +171,7 @@ export default function HexTile({ tile, size, cx, cy }: Props) {
             <image
               href={dieImage}
               x={cx - tokenR}
-              y={cy - tokenR}
+              y={cy - tokenR }
               width={tokenR * 2}
               height={tokenR * 2}
               clipPath={`url(#${tokenClipId})`}
@@ -179,7 +181,7 @@ export default function HexTile({ tile, size, cx, cy }: Props) {
             <>
               <text
                 x={cx}
-                y={cy}
+                y={cy - size * .5}
                 textAnchor="middle"
                 dominantBaseline="central"
                 fontSize={size * TOKEN_FONT_RATIO}
@@ -191,7 +193,7 @@ export default function HexTile({ tile, size, cx, cy }: Props) {
               </text>
               <ProbabilityDots
                 cx={cx}
-                cy={cy + tokenR * TOKEN_DOT_Y_RATIO}
+                cy={cy + tokenR * TOKEN_DOT_Y_RATIO - size * .5}
                 dieNumber={tile.dieNumber}
                 isRed={isRed}
                 dotSize={size * TOKEN_DOT_RATIO}

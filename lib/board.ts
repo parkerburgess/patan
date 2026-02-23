@@ -2,6 +2,8 @@ import type {
   Tile, Port, BoardState, VillageLocation, RoadLocation,
   ResourceType, PortType, HexCoord,
 } from "@/types/game";
+import { HEX_SIZE } from "@/lib/constants";
+import { axialToPixel, hexCornerPoints } from "@/lib/geometry";
 
 // ── Axial coords for the 19 hex tiles ────────────────────────────────────────
 // Hex-shaped layout: all (q, r) satisfying |q| ≤ 2, |r| ≤ 2, |q+r| ≤ 2
@@ -80,17 +82,111 @@ function hasAdjacentHighNumbers(tiles: Tile[]): boolean {
   return false;
 }
 
-// ── Village & Road Location Stubs ─────────────────────────────────────────────
-// A standard Catan board has 54 village locations (hex vertices) and
-// 72 road locations (hex edges). Computing their adjacency graph from axial
-// coordinates is deferred to a future phase.
+// ── Village & Road Location Geometry ──────────────────────────────────────────
 
-function createVillageLocations(): VillageLocation[] {
-  return [];
+/**
+ * Build all 54 vertex positions (VillageLocation) from the 19 tiles.
+ * Deduplicates by rounded pixel coordinate, builds tile adjacency,
+ * vertex-to-vertex adjacency (distance rule), and port bonuses.
+ */
+function createVillageLocations(tiles: Tile[], ports: Port[]): VillageLocation[] {
+  const byKey = new Map<string, VillageLocation>();
+  let nextId = 0;
+
+  // Pass 1: collect all corners, deduplicate, build tile adjacency
+  for (const tile of tiles) {
+    const { x, y } = axialToPixel(tile.coord, HEX_SIZE);
+    const corners = hexCornerPoints(x, y, HEX_SIZE);
+    for (const corner of corners) {
+      const key = `${Math.round(corner.x)},${Math.round(corner.y)}`;
+      if (!byKey.has(key)) {
+        byKey.set(key, {
+          id: nextId++,
+          ownerId: null,
+          adjacentVillageIds: [],
+          adjacentTileIds: [],
+          bonus: null,
+          isVillage: false,
+          isTown: false,
+          x: corner.x,
+          y: corner.y,
+        });
+      }
+      const loc = byKey.get(key)!;
+      if (!loc.adjacentTileIds.includes(tile.id)) {
+        loc.adjacentTileIds.push(tile.id);
+      }
+    }
+  }
+
+  // Pass 2: build vertex-to-vertex adjacency (edge i connects corner i and (i+1)%6)
+  for (const tile of tiles) {
+    const { x, y } = axialToPixel(tile.coord, HEX_SIZE);
+    const corners = hexCornerPoints(x, y, HEX_SIZE);
+    for (let i = 0; i < 6; i++) {
+      const a = corners[i];
+      const b = corners[(i + 1) % 6];
+      const locA = byKey.get(`${Math.round(a.x)},${Math.round(a.y)}`)!;
+      const locB = byKey.get(`${Math.round(b.x)},${Math.round(b.y)}`)!;
+      if (!locA.adjacentVillageIds.includes(locB.id)) locA.adjacentVillageIds.push(locB.id);
+      if (!locB.adjacentVillageIds.includes(locA.id)) locB.adjacentVillageIds.push(locA.id);
+    }
+  }
+
+  // Pass 3: assign port bonuses to the two corners on each port edge
+  for (const port of ports) {
+    const { x, y } = axialToPixel(port.hexCoord, HEX_SIZE);
+    const corners = hexCornerPoints(x, y, HEX_SIZE);
+    const ca = corners[port.edgeIndex];
+    const cb = corners[(port.edgeIndex + 1) % 6];
+    const locA = byKey.get(`${Math.round(ca.x)},${Math.round(ca.y)}`);
+    const locB = byKey.get(`${Math.round(cb.x)},${Math.round(cb.y)}`);
+    if (locA) locA.bonus = port.type;
+    if (locB) locB.bonus = port.type;
+  }
+
+  return Array.from(byKey.values());
 }
 
-function createRoadLocations(): RoadLocation[] {
-  return [];
+/**
+ * Build all 72 edge positions (RoadLocation) from the 19 tiles.
+ * Uses the same canonical-key deduplication as Board.tsx road rendering.
+ */
+function createRoadLocations(villageLocations: VillageLocation[], tiles: Tile[]): RoadLocation[] {
+  // Build pixel-key → village id lookup
+  const byKey = new Map<string, number>();
+  for (const loc of villageLocations) {
+    byKey.set(`${Math.round(loc.x)},${Math.round(loc.y)}`, loc.id);
+  }
+
+  const seen = new Set<string>();
+  const roads: RoadLocation[] = [];
+  let nextId = 0;
+
+  for (const tile of tiles) {
+    const { x, y } = axialToPixel(tile.coord, HEX_SIZE);
+    const corners = hexCornerPoints(x, y, HEX_SIZE);
+    for (let i = 0; i < 6; i++) {
+      const a = corners[i];
+      const b = corners[(i + 1) % 6];
+      const ax = Math.round(a.x), ay = Math.round(a.y);
+      const bx = Math.round(b.x), by = Math.round(b.y);
+      // Canonical key: smaller coordinate first
+      const key = ax < bx || (ax === bx && ay < by)
+        ? `${ax},${ay}-${bx},${by}`
+        : `${bx},${by}-${ax},${ay}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        const id1 = byKey.get(`${ax},${ay}`);
+        const id2 = byKey.get(`${bx},${by}`);
+        if (id1 !== undefined && id2 !== undefined) {
+          roads.push({ id: nextId++, ownerId: null, villageLocationId1: id1, villageLocationId2: id2 });
+        }
+      }
+    }
+  }
+
+  return roads;
 }
 
 // ── Board Generation ──────────────────────────────────────────────────────────
@@ -127,10 +223,13 @@ export function createBoard(): BoardState {
     edgeIndex: pos.edgeIndex,
   }));
 
+  const villageLocations = createVillageLocations(tiles, ports);
+  const roadLocations = createRoadLocations(villageLocations, tiles);
+
   return {
     tiles,
     ports,
-    villageLocations: createVillageLocations(),
-    roadLocations: createRoadLocations(),
+    villageLocations,
+    roadLocations,
   };
 }

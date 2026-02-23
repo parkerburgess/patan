@@ -31,6 +31,8 @@ export interface VillageLocation {
   bonus: PortType | null;       // port bonus if this location sits on a port edge
   isVillage: boolean;
   isTown: boolean;
+  x: number;                    // SVG pixel x position (computed at board creation)
+  y: number;                    // SVG pixel y position (computed at board creation)
 }
 
 export interface RoadLocation {
