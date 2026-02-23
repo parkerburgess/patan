@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { createBoard } from "@/lib/board";
 import { rollDice } from "@/lib/dice";
 import { buildDevDeck } from "@/lib/devDeck";
@@ -8,71 +8,14 @@ import {
   canPlaceVillage, canPlaceRoad, canPlaceTown,
   placeVillage, placeRoad, placeTown,
 } from "@/lib/placement";
+import { addResources, collectSetupResources, distributeResources, processRobber } from "@/lib/resources";
+import { useNpcSetupTurns } from "@/hooks/useNpcSetupTurns";
+import { useNpcAutoPlay } from "@/hooks/useNpcAutoPlay";
 import Board from "@/components/Board";
 import PlayerCard from "@/components/PlayerCard";
 import DiceDisplay from "@/components/DiceDisplay";
+import GameLog, { type LogEntry } from "@/components/GameLog";
 import type { BoardState, Player, DevCard, PlayableResource, TurnPhase } from "@/types/game";
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/** Returns one resource per non-desert tile adjacent to the given village location. */
-function collectSetupResources(
-  board: BoardState,
-  locationId: number,
-): Record<PlayableResource, number> {
-  const delta: Record<PlayableResource, number> = { wood: 0, brick: 0, sheep: 0, wheat: 0, stone: 0 };
-  const loc = board.villageLocations.find(l => l.id === locationId);
-  if (!loc) return delta;
-  for (const tileId of loc.adjacentTileIds) {
-    const tile = board.tiles.find(t => t.id === tileId);
-    if (tile && tile.resource !== "desert") {
-      delta[tile.resource as PlayableResource]++;
-    }
-  }
-  return delta;
-}
-
-function addResources(
-  a: Record<PlayableResource, number>,
-  b: Record<PlayableResource, number>,
-): Record<PlayableResource, number> {
-  return {
-    wood:  a.wood  + b.wood,
-    brick: a.brick + b.brick,
-    sheep: a.sheep + b.sheep,
-    wheat: a.wheat + b.wheat,
-    stone: a.stone + b.stone,
-  };
-}
-
-function distributeResources(board: BoardState, players: Player[], rollTotal: number): Player[] {
-  const matchingTileIds = new Set(
-    board.tiles.filter(t => t.dieNumber === rollTotal && !t.hasRobber).map(t => t.id)
-  );
-  if (matchingTileIds.size === 0) return players;
-  return players.map(player => {
-    const delta: Record<PlayableResource, number> = { wood: 0, brick: 0, sheep: 0, wheat: 0, stone: 0 };
-    for (const loc of board.villageLocations) {
-      if (loc.ownerId !== player.id) continue;
-      const mult = loc.isTown ? 2 : loc.isVillage ? 1 : 0;
-      if (mult === 0) continue;
-      for (const tileId of loc.adjacentTileIds) {
-        if (!matchingTileIds.has(tileId)) continue;
-        const tile = board.tiles.find(t => t.id === tileId)!;
-        if (tile.resource !== "desert")
-          delta[tile.resource as PlayableResource] += mult;
-      }
-    }
-    return Object.values(delta).some(v => v > 0)
-      ? { ...player, resources: addResources(player.resources, delta) }
-      : player;
-  });
-}
-
-function processRobber(board: BoardState): BoardState {
-  // TODO: move robber, discard logic
-  return board;
-}
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -131,17 +74,30 @@ export default function HomePage() {
   const [dice, setDice] = useState<{ die1: number; die2: number } | null>(null);
   const [activePlayerIdx, setActivePlayerIdx] = useState(board.startingPlayerIdx);
   const [turnPhase, setTurnPhase] = useState<TurnPhase>("pre-roll");
+  const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
+  const nextLogId = useRef(0);
 
-  // Refs so NPC setTimeout callback sees current board/players without stale closure
-  const boardRef = useRef(board);
-  const playersRef = useRef(players);
-  boardRef.current = board;
-  playersRef.current = players;
+  function addLog(message: string, playerColor: string) {
+    const id = nextLogId.current++;
+    setLogEntries(prev => [...prev, { id, message, playerColor }]);
+  }
 
-  // ── Derived state ────────────────────────────────────────────────────────────
+  // ── NPC automation ────────────────────────────────────────────────────────────
 
-  /// TODO remove commented code below
-  //const currentPlayerIdx = gamePhase === "setup" ? SETUP_ORDER[setupTurnIndex] : activePlayerIdx;
+  useNpcSetupTurns({
+    gamePhase, setupTurnIndex, activePlayerIdx, board, players,
+    setBoard, setPlayers, setActivePlayerIdx, setSetupTurnIndex, setGamePhase, setPlacementMode,
+    addLog,
+  });
+
+  useNpcAutoPlay({
+    gamePhase, activePlayerIdx, board, players,
+    setDice, setPlayers, setBoard, setActivePlayerIdx, setTurnPhase,
+    addLog,
+  });
+
+  // ── Derived state ─────────────────────────────────────────────────────────────
+
   const currentPlayerIdx = activePlayerIdx;
   const currentPlayer = players[currentPlayerIdx];
 
@@ -150,98 +106,13 @@ export default function HomePage() {
     ...players.filter(p => !p.isHuman),
   ];
 
-  // ── NPC auto-placement during setup ─────────────────────────────────────────
-
-  useEffect(() => {
-    if (gamePhase !== "setup") return;
-
-    setActivePlayerIdx(prev => (prev + 1) % players.length);
-    if (playersRef.current[activePlayerIdx].isHuman) {
-      setPlacementMode("village");
-      return;
-    }
-
-    // NPC turn: auto-place village + adjacent road after a short delay
-    const timer = setTimeout(() => {
-      const b = boardRef.current;
-      const ps = playersRef.current;
-      const player = ps[activePlayerIdx];
-
-      // Pick a random valid village location
-      const validVillages = b.villageLocations.filter(loc =>
-        canPlaceVillage(b, loc.id, player.id, true)
-      );
-      if (validVillages.length === 0) return;
-      const village = validVillages[Math.floor(Math.random() * validVillages.length)];
-
-      let newBoard = placeVillage(b, village.id, player.id);
-
-      // Pick a random adjacent unowned road
-      const adjRoads = newBoard.roadLocations.filter(r =>
-        r.ownerId === null && (
-          r.villageLocationId1 === village.id || r.villageLocationId2 === village.id
-        )
-      );
-      if (adjRoads.length > 0) {
-        const road = adjRoads[Math.floor(Math.random() * adjRoads.length)];
-        newBoard = placeRoad(newBoard, road.id, player.id);
-      }
-
-      setBoard(newBoard);
-      setPlayers(ps.map((p, idx) => {
-        if (idx !== activePlayerIdx) return p;
-        const base = { ...p, victoryPoints: p.victoryPoints + 1, villagesAvailable: p.villagesAvailable - 1, roadsAvailable: p.roadsAvailable - 1 };
-        /// TODO refactor this to not use setupTurnIndex - maybe use player victory points === 1
-        if (setupTurnIndex >= 4) {
-          return { ...base, resources: addResources(p.resources, collectSetupResources(b, village.id)) };
-        }
-        return base;
-      }));
-      /// TODO:  is this testing the index every turn for the entire game?  Then maybe look at gamePhase =="startUp"
-      if (setupTurnIndex >= 7) {
-        /// TODO: the line below should not be needed, just increment to the next player;  or has it already been incremented?
-        setActivePlayerIdx(boardRef.current.startingPlayerIdx);
-        setGamePhase("playing");
-        setPlacementMode(null);
-      } else {
-        setSetupTurnIndex(prev => prev + 1);
-      }
-    }, 350);
-
-    return () => clearTimeout(timer);
-  }, [gamePhase, setupTurnIndex]); // intentionally excludes board/players — use refs instead
-
-  // ── NPC auto-play during playing phase ───────────────────────────────────────
-
-  useEffect(() => {
-    if (gamePhase !== "playing") return;
-    if (playersRef.current[activePlayerIdx].isHuman) return;
-
-    const rollTimer = setTimeout(() => {
-      const result = rollDice();
-      setDice(result);
-      if (result.total !== 7) {
-        setPlayers(prev => distributeResources(boardRef.current, prev, result.total));
-      } else {
-        setBoard(prev => processRobber(prev));
-      }
-      const endTimer = setTimeout(() => {
-        setActivePlayerIdx(prev => (prev + 1) % playersRef.current.length);
-        setTurnPhase("pre-roll");
-        setDice(null);
-      }, 600);
-      return () => clearTimeout(endTimer);
-    }, 500);
-
-    return () => clearTimeout(rollTimer);
-  }, [gamePhase, activePlayerIdx]); // turnPhase intentionally excluded; NPC skips actions phase
-
-  // ── turn action handlers ───────────────────────────────────────────────────────
+  // ── Turn action handlers ───────────────────────────────────────────────────────
 
   function handleVillagePlace(locationId: number) {
     const isSetup = gamePhase === "setup";
     if (!canPlaceVillage(board, locationId, currentPlayer.id, isSetup)) return;
 
+    addLog(`${currentPlayer.name} placed a village`, currentPlayer.color);
     const newBoard = placeVillage(board, locationId, currentPlayer.id);
     setBoard(newBoard);
     setPlayers(prev => prev.map((p, idx) => {
@@ -265,6 +136,7 @@ export default function HomePage() {
     const isSetup = gamePhase === "setup";
     if (!canPlaceRoad(board, roadId, currentPlayer.id, isSetup)) return;
 
+    addLog(`${currentPlayer.name} placed a road`, currentPlayer.color);
     setBoard(placeRoad(board, roadId, currentPlayer.id));
     setPlayers(prev => prev.map((p, idx) =>
       idx === currentPlayerIdx
@@ -274,7 +146,7 @@ export default function HomePage() {
     setSetupLastVillageId(null);
 
     if (isSetup) {
-      /// TODO: why are we doing this again
+      addLog(`${currentPlayer.name} ended their turn`, currentPlayer.color);
       if (setupTurnIndex >= 7) {
         setActivePlayerIdx(board.startingPlayerIdx);
         setGamePhase("playing");
@@ -290,6 +162,7 @@ export default function HomePage() {
 
   function handleTownPlace(locationId: number) {
     if (!canPlaceTown(board, locationId, currentPlayer.id)) return;
+    addLog(`${currentPlayer.name} placed a town`, currentPlayer.color);
     setBoard(placeTown(board, locationId, currentPlayer.id));
     setPlayers(prev => prev.map((p, idx) =>
       idx === currentPlayerIdx
@@ -301,8 +174,10 @@ export default function HomePage() {
 
   function handleRollDice() {
     if (turnPhase !== "pre-roll") return;
+    addLog(`${currentPlayer.name}'s turn`, currentPlayer.color);
     const result = rollDice();
     setDice(result);
+    addLog(`${currentPlayer.name} rolled ${result.total}`, currentPlayer.color);
     if (result.total === 7) {
       setBoard(prev => processRobber(prev));
     } else {
@@ -312,6 +187,7 @@ export default function HomePage() {
   }
 
   function handleEndTurn() {
+    addLog(`${currentPlayer.name} ended their turn`, currentPlayer.color);
     setActivePlayerIdx(prev => (prev + 1) % players.length);
     setTurnPhase("pre-roll");
     setDice(null);
@@ -359,6 +235,7 @@ export default function HomePage() {
     setDice(null);
     setActivePlayerIdx(0);
     setTurnPhase("pre-roll");
+    setLogEntries([]);
   }
 
   // ── Derived UI values ────────────────────────────────────────────────────────
@@ -448,6 +325,10 @@ export default function HomePage() {
               onRoadPlace={handleRoadPlace}
             />
           </div>
+
+          <aside className="w-44 shrink-0">
+            <GameLog entries={logEntries} />
+          </aside>
         </div>
 
         {/* Playing-phase action bar */}
