@@ -131,12 +131,12 @@ export default function HexTile({ tile, size, cx, cy }: Props) {
       {resourceImage && (
         <image
           href={resourceImage}
-          x={cx - size * .5}
-          y={cy - size * .25}
-          width={size * 1}
-          height={size * 1}
-          clipPath={`url(#${hexClipId})`}
+          x={cx - size * .55}
+          y={cy - size * .75}
+          width={size * .025}
+          height={size * .025}
           preserveAspectRatio="xMidYMid slice"
+          opacity={0.60}
         />
       )}
 
@@ -166,9 +166,7 @@ export default function HexTile({ tile, size, cx, cy }: Props) {
             preserveAspectRatio="xMidYMid meet"
           />
         ) : (
-          <>
-            
-        </>
+          <></>
       )}
 
       {/* Robber */}

@@ -252,63 +252,50 @@ export default function HomePage() {
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <main className="min-h-screen bg-slate-900 py-8 px-6">
-      {/* Dice — fixed top-right */}
-      <div className="fixed top-3 right-3 flex items-center gap-2 bg-slate-800/90 backdrop-blur rounded-lg px-2.5 py-2 shadow-lg z-50">
-        <DiceDisplay die1={dice?.die1 ?? null} die2={dice?.die2 ?? null} />
-        <button
-          onClick={handleRollDice}
-          disabled={gamePhase === "playing" && (turnPhase === "actions" || !currentPlayer.isHuman)}
-          className="px-2.5 py-1 bg-red-700 hover:bg-red-600 active:bg-red-800
-                     text-white font-bold rounded transition-colors
-                     text-[10px] uppercase tracking-widest
-                     disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          Roll
-        </button>
-      </div>
+    <main className="h-screen bg-slate-900 px-6 py-4 flex flex-col overflow-hidden">
+      {/* Status banner */}
+      {(gamePhase === "setup" || gamePhase === "playing") && (
+        <div className="mb-3 px-5 py-2 bg-slate-700 rounded-lg text-sm text-white font-medium shadow shrink-0 self-center">
+          {gamePhase === "setup" ? (
+            <>
+              <span className="text-slate-400 mr-1">Setup —</span>
+              <span style={{ color: currentPlayer.color }} className="font-bold mr-1">
+                {currentPlayer.name}:
+              </span>
+              {currentPlayer.isHuman
+                ? (placementMode === "road" ? "Place a road" : "Place a village")
+                : "Placing…"}
+            </>
+          ) : (
+            <>
+              <span style={{ color: currentPlayer.color }} className="font-bold mr-1">
+                {currentPlayer.name}
+              </span>
+              <span className="text-slate-300">
+                {turnPhase === "pre-roll" ? "— Roll the dice" : "— Take your actions"}
+              </span>
+            </>
+          )}
+        </div>
+      )}
 
-      <div className="flex flex-col items-center">
-        {/* Status banner */}
-        {(gamePhase === "setup" || gamePhase === "playing") && (
-          <div className="mb-3 px-5 py-2 bg-slate-700 rounded-lg text-sm text-white font-medium shadow">
-            {gamePhase === "setup" ? (
-              <>
-                <span className="text-slate-400 mr-1">Setup —</span>
-                <span style={{ color: currentPlayer.color }} className="font-bold mr-1">
-                  {currentPlayer.name}:
-                </span>
-                {currentPlayer.isHuman
-                  ? (placementMode === "road" ? "Place a road" : "Place a village")
-                  : "Placing…"}
-              </>
-            ) : (
-              <>
-                <span style={{ color: currentPlayer.color }} className="font-bold mr-1">
-                  {currentPlayer.name}
-                </span>
-                <span className="text-slate-300">
-                  {turnPhase === "pre-roll" ? "— Roll the dice" : "— Take your actions"}
-                </span>
-              </>
-            )}
-          </div>
-        )}
+      {/* Main row */}
+      <div className="flex gap-5 flex-1 min-h-0 justify-center">
 
-        {/* Board + Players side by side */}
-        <div className="flex gap-5 items-stretch">
-          <aside className="flex flex-col gap-2 w-40 shrink-0">
-            {orderedPlayers.map((player) => (
-              <div key={player.id} className="flex-1 min-h-0">
-                <PlayerCard
-                  player={player}
-                  isActive={player.id === currentPlayer.id}
-                />
-              </div>
-            ))}
-          </aside>
+        {/* Left panel — player cards */}
+        <aside className="flex flex-col gap-2 w-40 shrink-0 overflow-y-auto">
+          {orderedPlayers.map((player) => (
+            <PlayerCard
+              key={player.id}
+              player={player}
+              isActive={player.id === currentPlayer.id}
+            />
+          ))}
+        </aside>
 
-          <div className="max-w-2xl w-[672px] drop-shadow-2xl shrink-0">
+        {/* Center — board + action bar + legend */}
+        <div className="flex flex-col items-center shrink-0 overflow-y-auto">
+          <div className="w-[672px] drop-shadow-2xl">
             <Board
               board={board}
               players={players}
@@ -322,91 +309,108 @@ export default function HomePage() {
             />
           </div>
 
-          <aside className="w-44 shrink-0">
-            <GameLog entries={logEntries} />
-          </aside>
-        </div>
-
-        {/* Playing-phase action bar */}
-        {gamePhase === "playing" && (
-          <div className="mt-4 flex flex-col items-center gap-2">
-            {turnPhase === "actions" && currentPlayer.isHuman && (
-              <div className="flex gap-2 flex-wrap justify-center">
-                {(["village", "town", "road"] as const).map((mode) => (
+          {/* Playing-phase action bar */}
+          {gamePhase === "playing" && (
+            <div className="mt-4 flex flex-col items-center gap-2">
+              {turnPhase === "actions" && currentPlayer.isHuman && (
+                <div className="flex gap-2 flex-wrap justify-center">
+                  {(["village", "town", "road"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      onClick={() => setPlacementMode(prev => prev === mode ? null : mode)}
+                      className={`px-4 py-2 rounded-lg font-semibold text-xs uppercase tracking-widest transition-colors ${
+                        placementMode === mode
+                          ? "bg-yellow-400 text-slate-900 shadow-[0_0_12px_rgba(250,204,21,0.5)]"
+                          : "bg-slate-700 text-slate-200 hover:bg-slate-600"
+                      }`}
+                    >
+                      Place {mode === "village" ? "Village" : mode === "town" ? "Town" : "Road"}
+                    </button>
+                  ))}
                   <button
-                    key={mode}
-                    onClick={() => setPlacementMode(prev => prev === mode ? null : mode)}
-                    className={`px-4 py-2 rounded-lg font-semibold text-xs uppercase tracking-widest transition-colors ${
-                      placementMode === mode
-                        ? "bg-yellow-400 text-slate-900 shadow-[0_0_12px_rgba(250,204,21,0.5)]"
-                        : "bg-slate-700 text-slate-200 hover:bg-slate-600"
-                    }`}
+                    onClick={handlePlayDevCard}
+                    className="px-4 py-2 rounded-lg font-semibold text-xs uppercase tracking-widest transition-colors bg-slate-700 text-slate-200 hover:bg-slate-600"
                   >
-                    Place {mode === "village" ? "Village" : mode === "town" ? "Town" : "Road"}
+                    Play Dev Card
                   </button>
-                ))}
+                  <button
+                    onClick={handleDrawDevCard}
+                    disabled={devDeck.length === 0}
+                    className="px-4 py-2 rounded-lg font-semibold text-xs uppercase tracking-widest transition-colors bg-slate-700 text-slate-200 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Draw Dev Card ({devDeck.length})
+                  </button>
+                  <button
+                    onClick={handleInitiateTrade}
+                    className="px-4 py-2 rounded-lg font-semibold text-xs uppercase tracking-widest transition-colors bg-slate-700 text-slate-200 hover:bg-slate-600"
+                  >
+                    Trade
+                  </button>
+                </div>
+              )}
+              {turnPhase === "actions" && currentPlayer.isHuman && (
                 <button
-                  onClick={handlePlayDevCard}
-                  className="px-4 py-2 rounded-lg font-semibold text-xs uppercase tracking-widest transition-colors bg-slate-700 text-slate-200 hover:bg-slate-600"
+                  onClick={handleEndTurn}
+                  className="px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transition-colors bg-green-700 hover:bg-green-600 active:bg-green-800 text-white shadow-lg"
                 >
-                  Play Dev Card
+                  End Turn
                 </button>
-                <button
-                  onClick={handleDrawDevCard}
-                  disabled={devDeck.length === 0}
-                  className="px-4 py-2 rounded-lg font-semibold text-xs uppercase tracking-widest transition-colors bg-slate-700 text-slate-200 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Draw Dev Card ({devDeck.length})
-                </button>
-                <button
-                  onClick={handleInitiateTrade}
-                  className="px-4 py-2 rounded-lg font-semibold text-xs uppercase tracking-widest transition-colors bg-slate-700 text-slate-200 hover:bg-slate-600"
-                >
-                  Trade
-                </button>
-              </div>
-            )}
-            {turnPhase === "actions" && currentPlayer.isHuman && (
-              <button
-                onClick={handleEndTurn}
-                className="px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transition-colors bg-green-700 hover:bg-green-600 active:bg-green-800 text-white shadow-lg"
-              >
-                End Turn
-              </button>
-            )}
-            {!currentPlayer.isHuman && (
-              <p className="text-slate-400 text-xs">{currentPlayer.name} is thinking…</p>
-            )}
+              )}
+              {!currentPlayer.isHuman && (
+                <p className="text-slate-400 text-xs">{currentPlayer.name} is thinking…</p>
+              )}
+            </div>
+          )}
+
+          {/* Legend */}
+          <div className="mt-4 flex flex-wrap gap-3 justify-center">
+            {LEGEND.map(({ color, label }) => (
+              <span key={label} className="flex items-center gap-1.5 text-slate-300 text-xs">
+                <span
+                  className="inline-block w-3 h-3 rounded-sm border border-slate-600"
+                  style={{ backgroundColor: color }}
+                />
+                {label}
+              </span>
+            ))}
           </div>
-        )}
 
-        {/* Legend */}
-        <div className="mt-4 flex flex-wrap gap-3 justify-center">
-          {LEGEND.map(({ color, label }) => (
-            <span key={label} className="flex items-center gap-1.5 text-slate-300 text-xs">
-              <span
-                className="inline-block w-3 h-3 rounded-sm border border-slate-600"
-                style={{ backgroundColor: color }}
-              />
-              {label}
+          <div className="mt-1">
+            <span className="text-slate-600 text-xs">
+              Ports: resource = 2:1 · ? = any 3:1
             </span>
-          ))}
+          </div>
+
+          <button
+            onClick={handleRegenerateBoard}
+            className="mt-5 px-6 py-2.5 bg-amber-500 hover:bg-amber-400 active:bg-amber-600
+                       text-slate-900 font-bold rounded-lg transition-colors
+                       shadow-lg text-xs uppercase tracking-widest"
+          >
+            Regenerate Board
+          </button>
         </div>
 
-        <div className="mt-1">
-          <span className="text-slate-600 text-xs">
-            Ports: resource = 2:1 · ? = any 3:1
-          </span>
-        </div>
+        {/* Right panel — dice + game log */}
+        <aside className="flex flex-col gap-2 w-44 shrink-0">
+          <div className="shrink-0 flex items-center gap-2 bg-slate-800 rounded-lg px-2.5 py-2 shadow">
+            <DiceDisplay die1={dice?.die1 ?? null} die2={dice?.die2 ?? null} />
+            <button
+              onClick={handleRollDice}
+              disabled={gamePhase === "playing" && (turnPhase === "actions" || !currentPlayer.isHuman)}
+              className="px-2.5 py-1 bg-red-700 hover:bg-red-600 active:bg-red-800
+                         text-white font-bold rounded transition-colors
+                         text-[10px] uppercase tracking-widest
+                         disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Roll
+            </button>
+          </div>
+          <div className="flex-1 min-h-0">
+            <GameLog entries={logEntries} />
+          </div>
+        </aside>
 
-        <button
-          onClick={handleRegenerateBoard}
-          className="mt-5 px-6 py-2.5 bg-amber-500 hover:bg-amber-400 active:bg-amber-600
-                     text-slate-900 font-bold rounded-lg transition-colors
-                     shadow-lg text-xs uppercase tracking-widest"
-        >
-          Regenerate Board
-        </button>
       </div>
     </main>
   );
