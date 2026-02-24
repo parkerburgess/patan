@@ -167,42 +167,15 @@ export default function HexTile({ tile, size, cx, cy }: Props) {
           />
         ) : (
           <>
-            <circle
-              cx={cx}
-              cy={cy - size * .5}
-              r={tokenR}
-              fill="#F5F0DC"
-              fillOpacity={0.45}
-              stroke="#8B7355"
-              strokeWidth={1.5}
-            />
-            <text
-              x={cx}
-              y={cy - size * .5}
-              textAnchor="middle"
-              dominantBaseline="central"
-              fontSize={size * TOKEN_FONT_RATIO}
-              fontWeight="bold"
-              fill={isRed ? "#CC0000" : "#1a1a1a"}
-              style={{ pointerEvents: "none" }}
-            >
-              {tile.dieNumber}
-            </text>
-            <ProbabilityDots
-              cx={cx}
-              cy={cy + tokenR * TOKEN_DOT_Y_RATIO - size * .5}
-              dieNumber={tile.dieNumber}
-              isRed={isRed}
-              dotSize={size * TOKEN_DOT_RATIO}
-            />
+            
         </>
       )}
 
       {/* Robber */}
       {tile.hasRobber && (
         <text
-          x={cx}
-          y={cy + size * 0.15}
+          x={cx - size * 0.5}
+          y={cy}
           textAnchor="middle"
           dominantBaseline="central"
           fontSize={size * 0.38}
