@@ -41,25 +41,25 @@ const RESOURCE_LABELS: Record<ResourceType, string> = {
 // Leave an entry absent (or undefined) to keep the default SVG rendering.
 
 const RESOURCE_IMAGES: Partial<Record<ResourceType, string>> = {
- // wood:   "/images/wood.png",
- // brick:  "/images/brick.png",
- // sheep:  "/images/sheep.png",
- // wheat:  "/images/wheat.png",
- // stone:  "/images/stone.png",
- // desert: "/images/desert.png",
+ wood:   "/images/wood.png",
+ brick:  "/images/brick.png",
+ sheep:  "/images/sheep.png",
+ wheat:  "/images/wheat.png",
+ stone:  "/images/stone.png",
+ desert: "/images/desert.png",
 };
 
 const DIE_IMAGES: Partial<Record<number, string>> = {
-  // 2:  "/images/die-2.png",
-  // 3:  "/images/die-3.png",
-  // 4:  "/images/die-4.png",
-  // 5:  "/images/die-5.png",
-  // 6:  "/images/die-6.png",
-  // 8:  "/images/die-8.png",
-  // 9:  "/images/die-9.png",
-  // 10: "/images/die-10.png",
-  // 11: "/images/die-11.png",
-  // 12: "/images/die-12.png",
+  2:  "/images/die-2.png",
+  3:  "/images/die-3.png",
+  4:  "/images/die-4.png",
+  5:  "/images/die-5.png",
+  6:  "/images/die-6.png",
+  8:  "/images/die-8.png",
+  9:  "/images/die-9.png",
+  10: "/images/die-10.png",
+  11: "/images/die-11.png",
+  12: "/images/die-12.png",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -156,50 +156,45 @@ export default function HexTile({ tile, size, cx, cy }: Props) {
       )}
 
       {/* Number token */}
-      {tile.dieNumber !== null && (
-        <>
-          <circle
-            cx={cx}
-            cy={cy - size * .5}
-            r={tokenR}
-            fill="#F5F0DC"
-            fillOpacity={0.45}
-            stroke="#8B7355"
-            strokeWidth={1.5}
+      {tile.dieNumber !== null && dieImage ? (
+          <image
+            href={dieImage}
+            x={cx - tokenR}
+            y={cy - tokenR}
+            width={tokenR * 2}
+            height={tokenR * 2}
+            preserveAspectRatio="xMidYMid meet"
           />
-          {dieImage ? (
-            <image
-              href={dieImage}
-              x={cx - tokenR}
-              y={cy - tokenR }
-              width={tokenR * 2}
-              height={tokenR * 2}
-              clipPath={`url(#${tokenClipId})`}
-              preserveAspectRatio="xMidYMid meet"
+        ) : (
+          <>
+            <circle
+              cx={cx}
+              cy={cy - size * .5}
+              r={tokenR}
+              fill="#F5F0DC"
+              fillOpacity={0.45}
+              stroke="#8B7355"
+              strokeWidth={1.5}
             />
-          ) : (
-            <>
-              <text
-                x={cx}
-                y={cy - size * .5}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fontSize={size * TOKEN_FONT_RATIO}
-                fontWeight="bold"
-                fill={isRed ? "#CC0000" : "#1a1a1a"}
-                style={{ pointerEvents: "none" }}
-              >
-                {tile.dieNumber}
-              </text>
-              <ProbabilityDots
-                cx={cx}
-                cy={cy + tokenR * TOKEN_DOT_Y_RATIO - size * .5}
-                dieNumber={tile.dieNumber}
-                isRed={isRed}
-                dotSize={size * TOKEN_DOT_RATIO}
-              />
-            </>
-          )}
+            <text
+              x={cx}
+              y={cy - size * .5}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fontSize={size * TOKEN_FONT_RATIO}
+              fontWeight="bold"
+              fill={isRed ? "#CC0000" : "#1a1a1a"}
+              style={{ pointerEvents: "none" }}
+            >
+              {tile.dieNumber}
+            </text>
+            <ProbabilityDots
+              cx={cx}
+              cy={cy + tokenR * TOKEN_DOT_Y_RATIO - size * .5}
+              dieNumber={tile.dieNumber}
+              isRed={isRed}
+              dotSize={size * TOKEN_DOT_RATIO}
+            />
         </>
       )}
 
