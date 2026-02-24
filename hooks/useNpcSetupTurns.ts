@@ -1,7 +1,7 @@
 import { useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import type { BoardState, Player } from "@/types/game";
-import { canPlaceVillage, placeVillage, placeRoad } from "@/lib/placement";
 import { addResources, collectSetupResources } from "@/lib/resources";
+import { placeStartingVillageAndRoadLocation } from "@/lib/npcMovesLogic";
 
 interface UseNpcSetupTurnsOptions {
   gamePhase: "setup" | "playing";
@@ -40,7 +40,7 @@ export function useNpcSetupTurns({
   useEffect(() => {
     if (gamePhase !== "setup") return;
 
-    setActivePlayerIdx(prev => (prev + 1) % playersRef.current.length);
+    //setActivePlayerIdx(prev => (prev + 1) % playersRef.current.length);
     const activePlayer = playersRef.current[activePlayerIdx];
     if (activePlayer.isHuman) {
       addLog(`${activePlayer.name}'s turn`, activePlayer.color);
@@ -50,35 +50,19 @@ export function useNpcSetupTurns({
 
     // NPC turn: auto-place village + adjacent road after a short delay
     const timer = setTimeout(() => {
-      const b = boardRef.current;
-      const ps = playersRef.current;
-      const player = ps[activePlayerIdx];
+      const board = boardRef.current;
+      const players = playersRef.current;
+      const player = players[activePlayerIdx];
+
       addLog(`${player.name}'s turn`, player.color);
 
-      const validVillages = b.villageLocations.filter(loc =>
-        canPlaceVillage(b, loc.id, player.id, true)
-      );
-      if (validVillages.length === 0) return;
-      const village = validVillages[Math.floor(Math.random() * validVillages.length)];
+      const npcStartingPlacementResult = placeStartingVillageAndRoadLocation(board, player.id);
+      if (npcStartingPlacementResult == null) return;
+      addLog("Village and Road Placed", player.color);
+      
+      setBoard(npcStartingPlacementResult.newBoard);
 
-      let newBoard = placeVillage(b, village.id, player.id);
-
-      const adjRoads = newBoard.roadLocations.filter(r =>
-        r.ownerId === null && (
-          r.villageLocationId1 === village.id || r.villageLocationId2 === village.id
-        )
-      );
-      if (adjRoads.length > 0) {
-        const road = adjRoads[Math.floor(Math.random() * adjRoads.length)];
-        newBoard = placeRoad(newBoard, road.id, player.id);
-      }
-
-      addLog(`${player.name} placed a village`, player.color);
-      if (adjRoads.length > 0) addLog(`${player.name} placed a road`, player.color);
-      addLog(`${player.name} ended their turn`, player.color);
-
-      setBoard(newBoard);
-      setPlayers(ps.map((p, idx) => {
+      setPlayers(players.map((p, idx) => {
         if (idx !== activePlayerIdx) return p;
         const base = {
           ...p,
@@ -86,10 +70,15 @@ export function useNpcSetupTurns({
           villagesAvailable: p.villagesAvailable - 1,
           roadsAvailable: p.roadsAvailable - 1,
         };
-        // TODO: use player.victoryPoints === 1 instead of setupTurnIndex to detect second round
-        if (setupTurnIndex >= 4) {
-          return { ...base, resources: addResources(p.resources, collectSetupResources(b, village.id)) };
+        
+        if (player.victoryPoints === 2) {
+          return { ...base, 
+              resources: addResources(p.resources, 
+                collectSetupResources(board, npcStartingPlacementResult.villageId)) };
         }
+        
+        addLog(`${player.name} ended their turn`, player.color);
+       
         return base;
       }));
 
@@ -98,7 +87,15 @@ export function useNpcSetupTurns({
         setGamePhase("playing");
         setPlacementMode(null);
       } else {
-        setSetupTurnIndex(prev => prev + 1);
+        const nextTurnIndex = setupTurnIndex + 1;
+        const n = players.length;
+        const startIdx = boardRef.current.startingPlayerIdx;
+        const nextPlayerIdx = nextTurnIndex < n
+          ? (startIdx + nextTurnIndex) % n
+          : (startIdx + (2 * n - 1 - nextTurnIndex) + n) % n;
+
+        setActivePlayerIdx(nextPlayerIdx);
+        setSetupTurnIndex(nextTurnIndex);
       }
     }, 350);
 

@@ -86,8 +86,7 @@ export default function HomePage() {
 
   useNpcSetupTurns({
     gamePhase, setupTurnIndex, activePlayerIdx, board, players,
-    setBoard, setPlayers, setActivePlayerIdx, setSetupTurnIndex, setGamePhase, setPlacementMode,
-    addLog,
+    setBoard, setPlayers, setActivePlayerIdx, setSetupTurnIndex, setGamePhase, setPlacementMode, addLog
   });
 
   useNpcAutoPlay({
@@ -152,7 +151,14 @@ export default function HomePage() {
         setGamePhase("playing");
         setPlacementMode(null);
       } else {
-        setSetupTurnIndex(prev => prev + 1);
+        const nextTurnIndex = setupTurnIndex + 1;
+        const n = players.length;
+        const startIdx = board.startingPlayerIdx;
+        const nextPlayerIdx = nextTurnIndex < n
+          ? (startIdx + nextTurnIndex) % n
+          : (startIdx + (2 * n - 1 - nextTurnIndex) + n) % n;
+        setActivePlayerIdx(nextPlayerIdx);
+        setSetupTurnIndex(nextTurnIndex);
         setPlacementMode(null);
       }
     } else {
@@ -250,16 +256,6 @@ export default function HomePage() {
       {/* Dice — fixed top-right */}
       <div className="fixed top-3 right-3 flex items-center gap-2 bg-slate-800/90 backdrop-blur rounded-lg px-2.5 py-2 shadow-lg z-50">
         <DiceDisplay die1={dice?.die1 ?? null} die2={dice?.die2 ?? null} />
-        {gamePhase === "playing" && currentPlayer.isHuman && currentPlayer.devCards.some(c => c.type === "knight") && (
-          <button
-            onClick={handlePlayKnight}
-            className="px-2.5 py-1 bg-purple-700 hover:bg-purple-600 active:bg-purple-800
-                       text-white font-bold rounded transition-colors
-                       text-[10px] uppercase tracking-widest"
-          >
-            Knight
-          </button>
-        )}
         <button
           onClick={handleRollDice}
           disabled={gamePhase === "playing" && (turnPhase === "actions" || !currentPlayer.isHuman)}

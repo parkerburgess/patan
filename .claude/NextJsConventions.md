@@ -26,3 +26,4 @@ Custom hooks should:
 - Prefer readable, self-documenting code over comments
 - Function and variable names should explain intent
 - If a comment is needed to explain what code does, consider renaming instead
+- do not use shortened variable names unless it is in a lamba expression
