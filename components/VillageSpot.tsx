@@ -120,8 +120,8 @@ export default function VillageSpot({ location, playerColor, mode, isValid, onVi
   // Unowned — show clickable diamond ring if valid for village placement
   if (isValid && mode === "place-village") {
     return (
-      <polygon
-        points={diamondPoints(x, y, RING_R)}
+      <circle
+        cx={x} cy={y} r={RING_R}
         fill="white" fillOpacity={0.09}
         stroke="white" strokeWidth={2} strokeOpacity={0.90}
         cursor="pointer"

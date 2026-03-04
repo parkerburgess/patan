@@ -39,7 +39,7 @@ const INITIAL_PLAYERS: Player[] = [
     resources: { ...EMPTY_RESOURCES }, devCards: [],
   },
   {
-    id: 2, name: "NPC 1", color: "#2563EB", isHuman: false,
+    id: 2, name: "NPC 1", color: "#042c83", isHuman: false,
     victoryPoints: 0, roadLength: 0, armyCount: 0,
     hasLargestArmy: false, hasLongestRoad: false,
     roadsAvailable: 15, villagesAvailable: 5, townsAvailable: 4,

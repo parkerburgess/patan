@@ -153,7 +153,7 @@ export default function Board({
         cx={0} cy={0}
         rx={halfW * 0.97}
         ry={halfH * 0.97}
-        fill="#354ebd"
+        fill="#3e59d4"
         opacity={.95}
       />
 

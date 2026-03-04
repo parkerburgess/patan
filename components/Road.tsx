@@ -13,7 +13,7 @@ const ROAD_WIDTH  = 12;   // outer road width
 const STRIPE_WIDTH = 2; // center stripe width
 
 export default function Road({ x1, y1, x2, y2, playerColor }: Props) {
-  const roadColor   = playerColor ?? "#dbdbd8";
+  const roadColor   = playerColor ?? "#978e80";
 
   return (
     <g>

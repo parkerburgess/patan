@@ -10,48 +10,49 @@ interface Props {
 export default function PlayerCard({ player, isActive }: Props) {
   return (
     <div
-      className={`grid gap-1.5 rounded-lg pt-2.5 px-2.5 pb-1 border-2 transition-all duration-200 ${
+      className={`grid gap-1.5 rounded-lg pt-2.5 px-2.5 pb-1 border-4 transition-all duration-200 ${
         isActive
-          ? "border-yellow-400 shadow-[0_0_14px_rgba(250,204,21,0.4)]"
-          : "border-black/20"
+          ? "bg-[#D4A96A] text-[#3B1F0A]"
+          : "bg-[#7B4F2E] text-white"
       }`}
-      style={{ backgroundColor: player.color }}
+      style={{ borderColor: player.color }}
     >
       {/* Row 1: name | VP | Road | Army */}
       <div className="grid grid-cols-[1fr_auto_auto_auto] items-baseline gap-2 text-xs">
-        <span className="font-bold text-white drop-shadow truncate">{player.name}</span>
-        <span className="text-xl font-bold text-yellow-200">{player.victoryPoints}</span>
+        <span className="font-bold truncate">{player.name}</span>
+        <span className={`text-xl font-bold ${isActive ? "text-[#7B4F2E]" : "text-[#D4A96A]"}`}>
+          {player.victoryPoints}
+        </span>
         <div>
-          <span className="text-white/60">R </span>
-          <span className={player.hasLongestRoad ? "font-bold text-yellow-200" : "text-white"}>
+          <span className="opacity-60">R </span>
+          <span className={player.hasLongestRoad ? `font-bold ${isActive ? "text-[#7B4F2E]" : "text-[#D4A96A]"}` : ""}>
             {player.roadLength}
           </span>
         </div>
         <div>
-          <span className="text-white/60">A </span>
-          <span className={player.hasLargestArmy ? "font-bold text-yellow-200" : "text-white"}>
+          <span className="opacity-60">A </span>
+          <span className={player.hasLargestArmy ? `font-bold ${isActive ? "text-[#7B4F2E]" : "text-[#D4A96A]"}` : ""}>
             {player.armyCount}
           </span>
         </div>
       </div>
 
       {/* Row 2: Roads | Villages | Towns */}
-      <div className="grid grid-cols-4 border-t border-white/30 pt-1 text-[11px] text-white/60">
+      <div className={`grid grid-cols-4 border-t pt-1 text-[11px] opacity-80 ${isActive ? "border-[#7B4F2E]/30" : "border-white/30"}`}>
         <span></span>
-        <span>Rd:<span className="text-white">{player.roadsAvailable}</span></span>
-        <span>Vil:<span className="text-slate-100">{player.villagesAvailable}</span></span>
-        <span>Twn:<span className="text-slate-100">{player.townsAvailable}</span></span>
+        <span>Rd:<span className="opacity-100">{player.roadsAvailable}</span></span>
+        <span>Vil:<span className="opacity-100">{player.villagesAvailable}</span></span>
+        <span>Twn:<span className="opacity-100">{player.townsAvailable}</span></span>
       </div>
 
-      {/* Resources
-      <div className="grid grid-cols-5 border-t border-white/30 pt-1 text-[9px] text-white/60">
+      {/* Resources */}
+      <div className="grid grid-cols-5 border-t border-white/30 pt-1 text-[9px] opacity-60">
         {(["wood","brick","sheep","wheat","stone"] as const).map(r => (
           <span key={r}>
-            {r.slice(0, 2)}<span className="text-white">{player.resources[r]}</span>
+            {r.slice(0, 2)}<span className="opacity-100">{player.resources[r]}</span>
           </span>
         ))}
       </div>
-      */}
     </div>
   );
 }
