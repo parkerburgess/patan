@@ -76,6 +76,7 @@ export default function Game() {
   const [activePlayerIdx, setActivePlayerIdx] = useState(board.startingPlayerIdx);
   const [turnPhase, setTurnPhase] = useState<TurnPhase>("pre-roll");
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
+  const [logOpen, setLogOpen] = useState(true);
   const nextLogId = useRef(0);
 
   function addLog(message: string, playerColor: string) {
@@ -255,6 +256,7 @@ export default function Game() {
 
   return (
     <main className="h-screen bg-slate-900 px-6 py-4 flex flex-col overflow-hidden">
+
       {/* Status banner */}
       {(gamePhase === "setup" || gamePhase === "playing") && (
         <div className="mb-3 px-5 py-2 bg-slate-700 rounded-lg text-sm text-white font-medium shadow shrink-0 self-center">
@@ -286,20 +288,6 @@ export default function Game() {
 
         {/* Left panel — player cards */}
         <aside className="flex flex-col gap-2 w-40 shrink-0 overflow-hidden">
-          <div className="flex items-center gap-2 bg-slate-800 rounded-lg px-2.5 py-2 shadow">
-            <DiceDisplay die1={dice?.die1 ?? null} die2={dice?.die2 ?? null} />
-            <button
-              onClick={handleRollDice}
-              disabled={gamePhase === "playing" && (turnPhase === "actions" || !currentPlayer.isHuman)}
-              className="px-2.5 py-1 bg-red-700 hover:bg-red-600 active:bg-red-800
-                         text-white font-bold rounded transition-colors
-                         text-[10px] uppercase tracking-widest
-                         disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Roll
-            </button>
-          </div>
-
           {orderedPlayers.map((player) => (
             <PlayerCard
               key={player.id}
@@ -309,7 +297,7 @@ export default function Game() {
           ))}
         </aside>
 
-        {/* Center — board + action bar + legend */}
+        {/* Center — board + legend */}
         <div className="flex flex-col items-center shrink-0 overflow-y-auto">
           <div className="w-[672px] drop-shadow-2xl">
             <Board
@@ -325,59 +313,6 @@ export default function Game() {
             />
           </div>
 
-          {/* Playing-phase action bar */}
-          {gamePhase === "playing" && (
-            <div className="mt-4 flex flex-col items-center gap-2">
-              {turnPhase === "actions" && currentPlayer.isHuman && (
-                <div className="flex gap-2 flex-wrap justify-center">
-                  {(["village", "town", "road"] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      onClick={() => setPlacementMode(prev => prev === mode ? null : mode)}
-                      className={`px-4 py-2 rounded-lg font-semibold text-xs uppercase tracking-widest transition-colors ${
-                        placementMode === mode
-                          ? "bg-yellow-400 text-slate-900 shadow-[0_0_12px_rgba(250,204,21,0.5)]"
-                          : "bg-slate-700 text-slate-200 hover:bg-slate-600"
-                      }`}
-                    >
-                      Place {mode === "village" ? "Village" : mode === "town" ? "Town" : "Road"}
-                    </button>
-                  ))}
-                  <button
-                    onClick={handlePlayDevCard}
-                    className="px-4 py-2 rounded-lg font-semibold text-xs uppercase tracking-widest transition-colors bg-slate-700 text-slate-200 hover:bg-slate-600"
-                  >
-                    Play Dev Card
-                  </button>
-                  <button
-                    onClick={handleDrawDevCard}
-                    disabled={devDeck.length === 0}
-                    className="px-4 py-2 rounded-lg font-semibold text-xs uppercase tracking-widest transition-colors bg-slate-700 text-slate-200 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Draw Dev Card ({devDeck.length})
-                  </button>
-                  <button
-                    onClick={handleInitiateTrade}
-                    className="px-4 py-2 rounded-lg font-semibold text-xs uppercase tracking-widest transition-colors bg-slate-700 text-slate-200 hover:bg-slate-600"
-                  >
-                    Trade
-                  </button>
-                </div>
-              )}
-              {turnPhase === "actions" && currentPlayer.isHuman && (
-                <button
-                  onClick={handleEndTurn}
-                  className="px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transition-colors bg-green-700 hover:bg-green-600 active:bg-green-800 text-white shadow-lg"
-                >
-                  End Turn
-                </button>
-              )}
-              {!currentPlayer.isHuman && (
-                <p className="text-slate-400 text-xs">{currentPlayer.name} is thinking…</p>
-              )}
-            </div>
-          )}
-
           {/* Legend */}
           <div className="mt-4 flex flex-wrap gap-3 justify-center">
             {LEGEND.map(({ color, label }) => (
@@ -390,30 +325,139 @@ export default function Game() {
               </span>
             ))}
           </div>
-
-          <div className="mt-1">
-            <span className="text-slate-600 text-xs">
-              Ports: resource = 2:1 · ? = any 3:1
-            </span>
-          </div>
-
         </div>
 
-        {/* Right panel — dice + game log */}
+        {/* Right panel */}
         <aside className="flex flex-col gap-2 w-44 shrink-0">
-          
-          <div className="flex-1 min-h-0">
-            <GameLog entries={logEntries} />
+
+          {/* Dice + Roll */}
+          <div className="flex items-center gap-2 bg-slate-800 rounded-lg px-2.5 py-2 shadow">
+            <DiceDisplay die1={dice?.die1 ?? null} die2={dice?.die2 ?? null} />
+            <button
+              onClick={handleRollDice}
+              disabled={gamePhase === "playing" && (turnPhase === "actions" || !currentPlayer.isHuman)}
+              className="px-2.5 py-1 bg-red-700 hover:bg-red-600 active:bg-red-800
+                         text-white font-bold rounded transition-colors
+                         text-[10px] uppercase tracking-widest
+                         disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Roll
+            </button>
           </div>
-          
+
+          {/* Trades */}
+          <fieldset className="border border-slate-500 rounded px-2 pb-2">
+            <legend className="text-[10px] text-slate-400 px-1">Trades</legend>
+            <div className="flex gap-2">
+              <button
+                disabled={gamePhase === "playing" && (turnPhase === "actions" || !currentPlayer.isHuman)}
+                className="flex-1 py-1 bg-red-700 hover:bg-red-600 active:bg-red-800
+                           text-white font-bold rounded transition-colors
+                           text-[10px] uppercase tracking-widest
+                           disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Bank
+              </button>
+              <button
+                disabled={gamePhase === "playing" && (turnPhase === "actions" || !currentPlayer.isHuman)}
+                className="flex-1 py-1 bg-red-700 hover:bg-red-600 active:bg-red-800
+                           text-white font-bold rounded transition-colors
+                           text-[10px] uppercase tracking-widest
+                           disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Player
+              </button>
+            </div>
+          </fieldset>
+
+          {/* Place */}
+          <fieldset className="border border-slate-500 rounded px-2 pb-2">
+            <legend className="text-[10px] text-slate-400 px-1">Place</legend>
+            <div className="flex gap-2">
+              {(["road", "village", "town"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setPlacementMode(prev => prev === mode ? null : mode)}
+                  className={`flex-1 px-4 py-2 rounded-lg font-semibold text-xs uppercase tracking-widest transition-colors ${
+                    placementMode === mode
+                      ? "bg-yellow-400 text-slate-900 shadow-[0_0_12px_rgba(250,204,21,0.5)]"
+                      : "bg-slate-700 text-slate-200 hover:bg-slate-600"
+                  }`}
+                >
+                  {mode === "village" ? "Village" : mode === "town" ? "Town" : "Road"}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          {/* Dev Cards */}
+          {/*///TODO move the Play button to the player card? */}
+          <fieldset className="border border-slate-500 rounded px-2 pb-2">
+            <legend className="text-[10px] text-slate-400 px-1">Dev Cards</legend>
+            <div className="flex gap-2">
+              <button
+                onClick={handleDrawDevCard}
+                disabled={devDeck.length === 0}
+                className="flex-1 py-1 bg-slate-700 text-slate-200 hover:bg-slate-600
+                           rounded text-[10px] uppercase tracking-widest transition-colors
+                           disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Draw ({devDeck.length})
+              </button>
+              
+              <button
+                onClick={handlePlayDevCard}
+                className="flex-1 py-1 bg-slate-700 text-slate-200 hover:bg-slate-600
+                           rounded text-[10px] uppercase tracking-widest transition-colors"
+              >
+                Play
+              </button>
+            </div>
+          </fieldset>
+
+          <div>
+            show dev cards?
+          </div>
+
+          {/* Game log */}
+          <div className="flex flex-col flex-1 min-h-0">
+            <button
+              onClick={() => setLogOpen(prev => !prev)}
+              className="flex items-center justify-between w-full px-2 py-1 text-[10px]
+                         uppercase tracking-widest text-slate-400 hover:text-slate-200 transition-colors"
+            >
+              <span>Log</span>
+              <span>{logOpen ? "▲" : "▼"}</span>
+            </button>
+            {logOpen && (
+              <div className="flex-1 min-h-0">
+                <GameLog entries={logEntries} />
+              </div>
+            )}
+          </div>
+
+          {/* End Turn */}
+          {turnPhase === "actions" && currentPlayer.isHuman && (
+            <button
+              onClick={handleEndTurn}
+              className="px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest
+                         transition-colors bg-green-700 hover:bg-green-600 active:bg-green-800
+                         text-white shadow-lg"
+            >
+              End Turn
+            </button>
+          )}
+
+          {/* Regen Board */}
           <button
             onClick={handleRegenerateBoard}
-            className="mt-5 px-6 py-2.5 bg-amber-500 hover:bg-amber-400 active:bg-amber-600
+            className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 active:bg-amber-600
                        text-slate-900 font-bold rounded-lg transition-colors
                        shadow-lg text-xs uppercase tracking-widest"
           >
             Regen Board
           </button>
+
         </aside>
 
       </div>
