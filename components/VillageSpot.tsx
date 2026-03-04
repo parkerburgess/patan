@@ -70,8 +70,8 @@ export default function VillageSpot({ location, playerColor, mode, isValid, onVi
     return (
       <polygon
         points={diamondPoints(x, y, RING_R)}
-        fill="white" fillOpacity={0.35}
-        stroke="white" strokeWidth={2} strokeOpacity={0.8}
+        fill="white" fillOpacity={0.1}
+        stroke="white" strokeWidth={2} strokeOpacity={0.0}
         cursor="pointer"
         onClick={onVillageClick}
       />

@@ -151,8 +151,8 @@ export default function Board({
         cx={0} cy={0}
         rx={halfW * 0.97}
         ry={halfH * 0.97}
-        fill="#ffffff"
-        opacity={.25}
+        fill="#1f43e7"
+        opacity={.95}
       />
 
       {/* Hex tiles */}

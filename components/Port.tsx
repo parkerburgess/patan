@@ -21,16 +21,6 @@ const PORT_COLORS: Record<PortType, string> = {
   desert:  "#E8D5A3",
 };
 
-const PORT_SYMBOLS: Record<PortType, string> = {
-  generic: "?",
-  wood:    "W",
-  brick:   "Br",
-  sheep:   "Sh",
-  wheat:   "Wh",
-  stone:   "St",
-  desert:  "De",
-};
-
 const PORT_RATIOS: Record<PortType, string> = {
   generic: "3:1",
   wood:    "2:1",
@@ -41,10 +31,24 @@ const PORT_RATIOS: Record<PortType, string> = {
   desert:  "2:1",
 };
 
+const PORT_IMAGES: Partial<Record<PortType, string>> = {
+  wood:  "/images/wood.png",
+  brick: "/images/brick.png",
+  sheep: "/images/sheep.png",
+  wheat: "/images/wheat.png",
+  stone: "/images/stone.png",
+  generic: "/images/generic.png"
+};
+
 export default function Port({ port, cx, cy, size }: Props) {
-  const mid = edgeMidpoint(cx, cy, size, port.edgeIndex);
+  // Two corners that define this edge
+  const angleA = ((60 * port.edgeIndex + 30) * Math.PI) / 180;
+  const angleB = ((60 * (port.edgeIndex + 1) + 30) * Math.PI) / 180;
+  const cornerA = { x: cx + size * Math.cos(angleA), y: cy + size * Math.sin(angleA) };
+  const cornerB = { x: cx + size * Math.cos(angleB), y: cy + size * Math.sin(angleB) };
 
   // Push port circle outward from hex center along the edge normal
+  const mid = edgeMidpoint(cx, cy, size, port.edgeIndex);
   const dx = mid.x - cx;
   const dy = mid.y - cy;
   const len = Math.sqrt(dx * dx + dy * dy);
@@ -53,45 +57,69 @@ export default function Port({ port, cx, cy, size }: Props) {
 
   const portR = size * PORT_RADIUS_RATIO;
   const color = PORT_COLORS[port.type];
+  const image = PORT_IMAGES[port.type];
+
+  // Unique clip ID per port instance
+  const clipId = `port-clip-${Math.round(portCx)}-${Math.round(portCy)}`;
 
   return (
     <g>
-      {/* Connector line from hex edge to port */}
+      <defs>
+        {image && (
+          <clipPath id={clipId}>
+            <circle cx={portCx} cy={portCy} r={portR} />
+          </clipPath>
+        )}
+      </defs>
+
+      {/* Connector lines from hex edge nodes to port */}
       <line
-        x1={mid.x} y1={mid.y}
+        x1={cornerA.x} y1={cornerA.y}
         x2={portCx} y2={portCy}
         stroke={color}
-        strokeWidth={2.5}
-        strokeDasharray="4 3"
+        strokeWidth={5}
         strokeLinecap="round"
       />
+      <line
+        x1={cornerB.x} y1={cornerB.y}
+        x2={portCx} y2={portCy}
+        stroke={color}
+        strokeWidth={5}
+        strokeLinecap="round"
+      />
+
       {/* Port circle */}
       <circle cx={portCx} cy={portCy} r={portR} fill={color} stroke="#1a1a1a" strokeWidth={1.5} />
-      {/* Symbol */}
-      <text
-        x={portCx}
-        y={portCy - portR * 0.18}
-        textAnchor="middle"
-        dominantBaseline="central"
-        fontSize={portR * 0.78}
-        fontWeight="bold"
-        fill="#ffffff"
-        style={{ pointerEvents: "none" }}
-      >
-        {PORT_SYMBOLS[port.type]}
-      </text>
-      {/* Ratio */}
-      <text
-        x={portCx}
-        y={portCy + portR * 0.62}
-        textAnchor="middle"
-        dominantBaseline="central"
-        fontSize={portR * 0.6}
-        fill="#ffffffcc"
-        style={{ pointerEvents: "none" }}
-      >
-        {PORT_RATIOS[port.type]}
-      </text>
+
+      {/* Resource image clipped to circle */}
+      {image && (
+        <image
+          href={image}
+          x={portCx - portR}
+          y={portCy - portR}
+          width={portR * 2}
+          height={portR * 2}
+          preserveAspectRatio="xMidYMid slice"
+          clipPath={`url(#${clipId})`}
+          opacity={0.85}
+        />
+      )}
+
+      {/* Generic port: show "?" symbol */}
+      {!image && (
+        <text
+          x={portCx}
+          y={portCy - portR * 0.18}
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize={portR * 0.78}
+          fontWeight="bold"
+          fill="#ffffff"
+          style={{ pointerEvents: "none" }}
+        >
+          ?
+        </text>
+      )}
     </g>
   );
 }

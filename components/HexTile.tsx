@@ -131,10 +131,10 @@ export default function HexTile({ tile, size, cx, cy }: Props) {
       {resourceImage && (
         <image
           href={resourceImage}
-          x={cx - size * .55}
+          x={cx - size * .75}
           y={cy - size * .75}
-          width={size * .025}
-          height={size * .025}
+          width={size * 1.5}
+          height={size * 1.5}
           preserveAspectRatio="xMidYMid slice"
           opacity={0.60}
         />
