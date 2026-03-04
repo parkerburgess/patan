@@ -2,6 +2,7 @@ import { useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import type { BoardState, Player, TurnPhase } from "@/types/game";
 import { rollDice } from "@/lib/dice";
 import { distributeResources, processRobber } from "@/lib/resources";
+import { updateRoadLengths } from "@/lib/roads";
 
 interface UseNpcAutoPlayOptions {
   gamePhase: "setup" | "playing";
@@ -52,6 +53,7 @@ export function useNpcAutoPlay({
       }
       const endTimer = setTimeout(() => {
         addLog(`${player.name} ended their turn`, player.color);
+        setPlayers(prev => updateRoadLengths(boardRef.current, prev));
         setActivePlayerIdx(prev => (prev + 1) % playersRef.current.length);
         setTurnPhase("pre-roll");
         setDice(null);

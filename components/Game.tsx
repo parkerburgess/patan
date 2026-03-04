@@ -9,6 +9,7 @@ import {
   placeVillage, placeRoad, placeTown,
 } from "@/lib/placement";
 import { addResources, collectSetupResources, distributeResources, processRobber } from "@/lib/resources";
+import { updateRoadLengths } from "@/lib/roads";
 import { useNpcSetupTurns } from "@/hooks/useNpcSetupTurns";
 import { useNpcAutoPlay } from "@/hooks/useNpcAutoPlay";
 import Board from "@/components/Board";
@@ -194,6 +195,7 @@ export default function Game() {
 
   function handleEndTurn() {
     addLog(`${currentPlayer.name} ended their turn`, currentPlayer.color);
+    setPlayers(prev => updateRoadLengths(board, prev));
     setActivePlayerIdx(prev => (prev + 1) % players.length);
     setTurnPhase("pre-roll");
     setDice(null);
