@@ -109,7 +109,7 @@ export default function Game() {
 
   function handleVillagePlace(locationId: number) {
     const isSetup = gamePhase === "setup";
-    if (!canPlaceVillage(board, locationId, currentPlayer.id, isSetup)) return;
+    if (!canPlaceVillage(board, locationId, currentPlayer.id, isSetup, currentPlayer.resources)) return;
 
     addLog(`${currentPlayer.name} placed a village`, currentPlayer.color);
     const newBoard = placeVillage(board, locationId, currentPlayer.id);
@@ -133,7 +133,7 @@ export default function Game() {
 
   function handleRoadPlace(roadId: number) {
     const isSetup = gamePhase === "setup";
-    if (!canPlaceRoad(board, roadId, currentPlayer.id, isSetup)) return;
+    if (!canPlaceRoad(board, roadId, currentPlayer.id, isSetup, currentPlayer.resources)) return;
 
     addLog(`${currentPlayer.name} placed a road`, currentPlayer.color);
     setBoard(placeRoad(board, roadId, currentPlayer.id));
@@ -167,7 +167,7 @@ export default function Game() {
   }
 
   function handleTownPlace(locationId: number) {
-    if (!canPlaceTown(board, locationId, currentPlayer.id)) return;
+    if (!canPlaceTown(board, locationId, currentPlayer.id, currentPlayer.resources)) return;
     addLog(`${currentPlayer.name} placed a town`, currentPlayer.color);
     setBoard(placeTown(board, locationId, currentPlayer.id));
     setPlayers(prev => prev.map((p, idx) =>

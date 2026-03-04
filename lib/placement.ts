@@ -1,4 +1,4 @@
-import type { BoardState } from "@/types/game";
+import type { BoardState, PlayableResource } from "@/types/game";
 
 /**
  * Returns true if the given village location is a valid placement for playerId.
@@ -12,6 +12,7 @@ export function canPlaceVillage(
   locationId: number,
   playerId: number,
   isSetup: boolean,
+  resources?: Record<PlayableResource, number>,
 ): boolean {
   const loc = board.villageLocations.find(l => l.id === locationId);
   if (!loc || loc.ownerId !== null) return false;
@@ -21,6 +22,11 @@ export function canPlaceVillage(
     board.villageLocations.find(l => l.id === adjId)?.ownerId !== null
   );
   if (hasAdjacentSettlement) return false;
+
+  // Resource cost: 1 wood, 1 brick, 1 sheep, 1 wheat (waived in setup)
+  if (!isSetup && resources) {
+    if (resources.wood < 1 || resources.brick < 1 || resources.sheep < 1 || resources.wheat < 1) return false;
+  }
 
   // Must connect to player's road network (waived in setup)
   if (!isSetup) {
@@ -56,9 +62,15 @@ export function canPlaceTown(
   board: BoardState,
   locationId: number,
   playerId: number,
+  resources?: Record<PlayableResource, number>,
 ): boolean {
   const loc = board.villageLocations.find(l => l.id === locationId);
-  return !!loc && loc.ownerId === playerId && loc.isVillage && !loc.isTown;
+  if (!loc || loc.ownerId !== playerId || !loc.isVillage || loc.isTown) return false;
+
+  // Resource cost: 2 wheat, 3 stone
+  if (resources && (resources.wheat < 2 || resources.stone < 3)) return false;
+
+  return true;
 }
 
 /** Upgrade a village to a town. Returns new BoardState (immutable). */
@@ -88,10 +100,14 @@ export function canPlaceRoad(
   locationId: number,
   playerId: number,
   isSetup: boolean,
+  resources?: Record<PlayableResource, number>,
 ): boolean {
   const road = board.roadLocations.find(r => r.id === locationId);
   if (!road || road.ownerId !== null) return false;
   if (isSetup) return true;
+
+  // Resource cost: 1 wood, 1 brick (waived in setup)
+  if (resources && (resources.wood < 1 || resources.brick < 1)) return false;
 
   const { villageLocationId1: vid1, villageLocationId2: vid2 } = road;
 

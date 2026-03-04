@@ -110,13 +110,15 @@ export default function Board({
     return computeRoadEdgesFromTiles(board);
   }, [board, villageById]);
 
+  const activePlayer = players.find(p => p.id === activePlayerId);
+
   // Valid road ids when in road placement mode
   const validRoadIds = useMemo(() => {
     if (placementMode !== "road") return new Set<number>();
     return new Set(
       board.roadLocations
         .filter(r => {
-          if (!canPlaceRoad(board, r.id, activePlayerId, isSetup)) return false;
+          if (!canPlaceRoad(board, r.id, activePlayerId, isSetup, activePlayer?.resources)) return false;
           // During setup, restrict to roads adjacent to the just-placed village
           if (isSetup && setupLastVillageId !== null) {
             return r.villageLocationId1 === setupLastVillageId ||
@@ -126,7 +128,7 @@ export default function Board({
         })
         .map(r => r.id)
     );
-  }, [board, placementMode, activePlayerId, isSetup, setupLastVillageId]);
+  }, [board, placementMode, activePlayerId, isSetup, setupLastVillageId, activePlayer]);
 
   // Valid village/town ids when in village or town placement mode
   const validVillageIds = useMemo(() => {
@@ -134,12 +136,12 @@ export default function Board({
     return new Set(
       board.villageLocations
         .filter(loc => placementMode === "village"
-          ? canPlaceVillage(board, loc.id, activePlayerId, isSetup)
-          : canPlaceTown(board, loc.id, activePlayerId)
+          ? canPlaceVillage(board, loc.id, activePlayerId, isSetup, activePlayer?.resources)
+          : canPlaceTown(board, loc.id, activePlayerId, activePlayer?.resources)
         )
         .map(loc => loc.id)
     );
-  }, [board, placementMode, activePlayerId, isSetup]);
+  }, [board, placementMode, activePlayerId, isSetup, activePlayer]);
 
   return (
     <svg
