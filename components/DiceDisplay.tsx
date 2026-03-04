@@ -48,7 +48,7 @@ export default function DiceDisplay({ die1, die2 }: Props) {
     <div className="flex items-center gap-3">
       <DieFace value={die1} />
       <DieFace value={die2} />
-      <span className="text-slate-300 text-sm font-bold w-6 text-center">
+      <span className="text-slate-300 text-sm font-bold text-center">
         {total !== null ? total : ""}
       </span>
     </div>

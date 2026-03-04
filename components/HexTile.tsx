@@ -171,16 +171,15 @@ export default function HexTile({ tile, size, cx, cy }: Props) {
 
       {/* Robber */}
       {tile.hasRobber && (
-        <text
-          x={cx - size * 0.5}
-          y={cy}
-          textAnchor="middle"
-          dominantBaseline="central"
-          fontSize={size * 0.38}
+        <image
+          href="/images/robber.png"
+          x={cx - size * 1.5}
+          y={cy - size}
+          width={size * 2}
+          height={size * 2}
+          preserveAspectRatio="xMidYMid meet"
           style={{ pointerEvents: "none" }}
-        >
-          🏴
-        </text>
+        />
       )}
     </g>
   );

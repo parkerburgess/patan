@@ -46,7 +46,7 @@ const INITIAL_PLAYERS: Player[] = [
     resources: { ...EMPTY_RESOURCES }, devCards: [],
   },
   {
-    id: 3, name: "NPC 2", color: "#EA580C", isHuman: false,
+    id: 3, name: "NPC 2", color: "#f1de2b", isHuman: false,
     victoryPoints: 0, roadLength: 0, armyCount: 0,
     hasLargestArmy: false, hasLongestRoad: false,
     roadsAvailable: 15, villagesAvailable: 5, townsAvailable: 4,
@@ -283,7 +283,21 @@ export default function Game() {
       <div className="flex gap-5 flex-1 min-h-0 justify-center">
 
         {/* Left panel — player cards */}
-        <aside className="flex flex-col gap-2 w-40 shrink-0 overflow-y-auto">
+        <aside className="flex flex-col gap-2 w-40 shrink-0 overflow-hidden">
+          <div className="flex items-center gap-2 bg-slate-800 rounded-lg px-2.5 py-2 shadow">
+            <DiceDisplay die1={dice?.die1 ?? null} die2={dice?.die2 ?? null} />
+            <button
+              onClick={handleRollDice}
+              disabled={gamePhase === "playing" && (turnPhase === "actions" || !currentPlayer.isHuman)}
+              className="px-2.5 py-1 bg-red-700 hover:bg-red-600 active:bg-red-800
+                         text-white font-bold rounded transition-colors
+                         text-[10px] uppercase tracking-widest
+                         disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Roll
+            </button>
+          </div>
+
           {orderedPlayers.map((player) => (
             <PlayerCard
               key={player.id}
@@ -381,34 +395,23 @@ export default function Game() {
             </span>
           </div>
 
+        </div>
+
+        {/* Right panel — dice + game log */}
+        <aside className="flex flex-col gap-2 w-44 shrink-0">
+          
+          <div className="flex-1 min-h-0">
+            <GameLog entries={logEntries} />
+          </div>
+          
           <button
             onClick={handleRegenerateBoard}
             className="mt-5 px-6 py-2.5 bg-amber-500 hover:bg-amber-400 active:bg-amber-600
                        text-slate-900 font-bold rounded-lg transition-colors
                        shadow-lg text-xs uppercase tracking-widest"
           >
-            Regenerate Board
+            Regen Board
           </button>
-        </div>
-
-        {/* Right panel — dice + game log */}
-        <aside className="flex flex-col gap-2 w-44 shrink-0">
-          <div className="shrink-0 flex items-center gap-2 bg-slate-800 rounded-lg px-2.5 py-2 shadow">
-            <DiceDisplay die1={dice?.die1 ?? null} die2={dice?.die2 ?? null} />
-            <button
-              onClick={handleRollDice}
-              disabled={gamePhase === "playing" && (turnPhase === "actions" || !currentPlayer.isHuman)}
-              className="px-2.5 py-1 bg-red-700 hover:bg-red-600 active:bg-red-800
-                         text-white font-bold rounded transition-colors
-                         text-[10px] uppercase tracking-widest
-                         disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Roll
-            </button>
-          </div>
-          <div className="flex-1 min-h-0">
-            <GameLog entries={logEntries} />
-          </div>
         </aside>
 
       </div>
