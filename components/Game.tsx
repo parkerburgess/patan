@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { createBoard } from "@/lib/board";
 import { rollDice } from "@/lib/dice";
 import { buildDevDeck } from "@/lib/devDeck";
@@ -8,7 +8,12 @@ import {
   canPlaceVillage, canPlaceRoad, canPlaceTown,
   placeVillage, placeRoad, placeTown,
 } from "@/lib/placement";
-import { addResources, collectSetupResources, distributeResources, processRobber } from "@/lib/resources";
+import {
+  addResources, subtractResources, collectSetupResources,
+  distributeResources, applyNpcDiscards, moveRobber,
+  stealRandomResource, totalResources,
+} from "@/lib/resources";
+import { npcChooseRobberTile } from "@/lib/robber";
 import { updateRoadLengths } from "@/lib/roads";
 import { useNpcSetupTurns } from "@/hooks/useNpcSetupTurns";
 import { useNpcAutoPlay } from "@/hooks/useNpcAutoPlay";
@@ -16,6 +21,7 @@ import Board from "@/components/Board";
 import PlayerCard from "@/components/PlayerCard";
 import DiceDisplay from "@/components/DiceDisplay";
 import GameLog, { type LogEntry } from "@/components/GameLog";
+import DiscardModal from "@/components/DiscardModal";
 import type { BoardState, Player, DevCard, PlayableResource, TurnPhase } from "@/types/game";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -79,6 +85,17 @@ export default function Game() {
   const [logOpen, setLogOpen] = useState(true);
   const nextLogId = useRef(0);
 
+  // ── Robber state ─────────────────────────────────────────────────────────────
+
+  /** "human-discard" = modal open; "place-robber" = human must click a hex */
+  const [robberState, setRobberState] = useState<"human-discard" | "place-robber" | null>(null);
+  const [discardAmount, setDiscardAmount] = useState(0);
+  /**
+   * Set when it's an NPC's turn and the robber tile is already chosen,
+   * but we're waiting for the human player to discard first.
+   */
+  const [pendingNpcRobber, setPendingNpcRobber] = useState<{ tileId: number } | null>(null);
+
   function addLog(message: string, playerColor: string) {
     const id = nextLogId.current++;
     setLogEntries(prev => [...prev, { id, message, playerColor }]);
@@ -94,6 +111,7 @@ export default function Game() {
   useNpcAutoPlay({
     gamePhase, activePlayerIdx, board, players,
     setDice, setPlayers, setBoard, setActivePlayerIdx, setTurnPhase,
+    setRobberState, setDiscardAmount, setPendingNpcRobber,
     addLog,
   });
 
@@ -101,15 +119,23 @@ export default function Game() {
 
   const currentPlayerIdx = activePlayerIdx;
   const currentPlayer = players[currentPlayerIdx];
+  const humanPlayer = players.find(p => p.isHuman)!;
 
   const orderedPlayers = [
     ...players.filter(p => p.isHuman),
     ...players.filter(p => !p.isHuman),
   ];
 
+  // Tiles the human can place the robber on (all except the current robber tile)
+  const validRobberTileIds = useMemo(() => {
+    if (robberState !== "place-robber") return new Set<number>();
+    return new Set(board.tiles.filter(t => !t.hasRobber).map(t => t.id));
+  }, [board, robberState]);
+
   // ── Turn action handlers ───────────────────────────────────────────────────────
 
   function handleVillagePlace(locationId: number) {
+    if (robberState !== null) return;
     const isSetup = gamePhase === "setup";
     if (!canPlaceVillage(board, locationId, currentPlayer.id, isSetup, currentPlayer.resources)) return;
 
@@ -134,6 +160,7 @@ export default function Game() {
   }
 
   function handleRoadPlace(roadId: number) {
+    if (robberState !== null) return;
     const isSetup = gamePhase === "setup";
     if (!canPlaceRoad(board, roadId, currentPlayer.id, isSetup, currentPlayer.resources)) return;
 
@@ -169,6 +196,7 @@ export default function Game() {
   }
 
   function handleTownPlace(locationId: number) {
+    if (robberState !== null) return;
     if (!canPlaceTown(board, locationId, currentPlayer.id, currentPlayer.resources)) return;
     addLog(`${currentPlayer.name} placed a town`, currentPlayer.color);
     setBoard(placeTown(board, locationId, currentPlayer.id));
@@ -181,16 +209,91 @@ export default function Game() {
   }
 
   function handleRollDice() {
-    if (turnPhase !== "pre-roll") return;
+    if (turnPhase !== "pre-roll" || robberState !== null) return;
     addLog(`${currentPlayer.name}'s turn`, currentPlayer.color);
     const result = rollDice();
     setDice(result);
     addLog(`${currentPlayer.name} rolled ${result.total}`, currentPlayer.color);
+
     if (result.total === 7) {
-      setBoard(prev => processRobber(prev));
+      // Apply NPC discards immediately
+      players.forEach(p => {
+        if (!p.isHuman && totalResources(p) > 7) {
+          addLog(`${p.name} discarded ${Math.floor(totalResources(p) / 2)} cards`, p.color);
+        }
+      });
+      const afterNpcDiscard = applyNpcDiscards(players);
+      setPlayers(afterNpcDiscard);
+
+      // Check if human must discard
+      const humanTotal = totalResources(currentPlayer);
+      if (humanTotal > 7) {
+        setDiscardAmount(Math.floor(humanTotal / 2));
+        setRobberState("human-discard");
+      } else {
+        setRobberState("place-robber");
+      }
+      // turnPhase stays "pre-roll" until robber is resolved
     } else {
       setPlayers(prev => distributeResources(board, prev, result.total));
+      setTurnPhase("actions");
     }
+  }
+
+  function handleHumanDiscard(discard: Record<PlayableResource, number>) {
+    addLog(`${humanPlayer.name} discarded ${discardAmount} cards`, humanPlayer.color);
+
+    let updatedPlayers = players.map(p =>
+      p.isHuman
+        ? { ...p, resources: subtractResources(p.resources, discard) }
+        : p
+    );
+
+    if (pendingNpcRobber) {
+      // It was an NPC's turn — complete robber placement then end the NPC turn
+      const npcPlayer = players[activePlayerIdx];
+      const { tileId } = pendingNpcRobber;
+      const newBoard = moveRobber(board, tileId);
+      setBoard(newBoard);
+      addLog(`${npcPlayer.name} moved the robber`, npcPlayer.color);
+
+      const { players: afterSteal, stolen, fromName } =
+        stealRandomResource(newBoard, tileId, npcPlayer.id, updatedPlayers);
+      if (stolen && fromName) {
+        addLog(`${npcPlayer.name} stole ${stolen} from ${fromName}`, npcPlayer.color);
+      }
+      updatedPlayers = afterSteal;
+
+      addLog(`${npcPlayer.name} ended their turn`, npcPlayer.color);
+      const withRoads = updateRoadLengths(newBoard, updatedPlayers);
+      setPlayers(withRoads);
+      setPendingNpcRobber(null);
+      setRobberState(null);
+      setActivePlayerIdx(prev => (prev + 1) % players.length);
+      setTurnPhase("pre-roll");
+      setDice(null);
+    } else {
+      // Human's own turn — proceed to place the robber
+      setPlayers(updatedPlayers);
+      setRobberState("place-robber");
+    }
+  }
+
+  function handleRobberPlace(tileId: number) {
+    const newBoard = moveRobber(board, tileId);
+    setBoard(newBoard);
+    addLog(`${currentPlayer.name} moved the robber`, currentPlayer.color);
+
+    const { players: afterSteal, stolen, fromName } =
+      stealRandomResource(newBoard, tileId, currentPlayer.id, players);
+    if (stolen && fromName) {
+      addLog(`${currentPlayer.name} stole ${stolen} from ${fromName}`, currentPlayer.color);
+    } else if (fromName) {
+      addLog(`${fromName} had no resources to steal`, currentPlayer.color);
+    }
+    setPlayers(afterSteal);
+
+    setRobberState(null);
     setTurnPhase("actions");
   }
 
@@ -217,7 +320,7 @@ export default function Game() {
   }
 
   function handlePlayKnight() {
-    // Knight can be played before or after the roll
+    // TODO: trigger robber flow (same as rolling 7) after removing knight card
     setPlayers(prev => prev.map((p, idx) => {
       if (idx !== currentPlayerIdx) return p;
       const ki = p.devCards.findIndex(c => c.type === "knight");
@@ -226,7 +329,6 @@ export default function Game() {
       cards.splice(ki, 1);
       return { ...p, devCards: cards, armyCount: p.armyCount + 1 };
     }));
-    setBoard(prev => processRobber(prev));
   }
 
   function handlePlayDevCard() {
@@ -245,39 +347,61 @@ export default function Game() {
     setActivePlayerIdx(0);
     setTurnPhase("pre-roll");
     setLogEntries([]);
+    setRobberState(null);
+    setDiscardAmount(0);
+    setPendingNpcRobber(null);
   }
 
   // ── Derived UI values ────────────────────────────────────────────────────────
 
-  // Only pass placement mode to Board when it's the human player's turn
-  const activePlacementMode = currentPlayer.isHuman ? placementMode : null;
+  // Only pass placement mode to Board when it's the human player's turn and no robber active
+  const activePlacementMode = (currentPlayer.isHuman && robberState === null) ? placementMode : null;
+  const isRobberMode = robberState === "place-robber" && currentPlayer.isHuman;
+
+  // Status banner text
+  function statusText() {
+    if (gamePhase === "setup") {
+      if (!currentPlayer.isHuman) return "Placing…";
+      return placementMode === "road" ? "Place a road" : "Place a village";
+    }
+    if (robberState === "place-robber") return "Place the robber on a hex";
+    if (robberState === "human-discard") return "Discard resources";
+    return turnPhase === "pre-roll" ? "— Roll the dice" : "— Take your actions";
+  }
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
     <main className="h-screen bg-slate-900 px-6 py-4 flex flex-col overflow-hidden">
 
+      {/* Discard modal */}
+      {robberState === "human-discard" && (
+        <DiscardModal
+          player={humanPlayer}
+          mustDiscard={discardAmount}
+          onConfirm={handleHumanDiscard}
+        />
+      )}
+
       {/* Status banner */}
       {(gamePhase === "setup" || gamePhase === "playing") && (
-        <div className="mb-3 px-5 py-2 bg-slate-700 rounded-lg text-sm text-white font-medium shadow shrink-0 self-center">
+        <div className={`mb-3 px-5 py-2 rounded-lg text-sm text-white font-medium shadow shrink-0 self-center ${
+          robberState === "place-robber" ? "bg-yellow-700" : "bg-slate-700"
+        }`}>
           {gamePhase === "setup" ? (
             <>
               <span className="text-slate-400 mr-1">Setup —</span>
               <span style={{ color: currentPlayer.color }} className="font-bold mr-1">
                 {currentPlayer.name}:
               </span>
-              {currentPlayer.isHuman
-                ? (placementMode === "road" ? "Place a road" : "Place a village")
-                : "Placing…"}
+              {statusText()}
             </>
           ) : (
             <>
               <span style={{ color: currentPlayer.color }} className="font-bold mr-1">
                 {currentPlayer.name}
               </span>
-              <span className="text-slate-300">
-                {turnPhase === "pre-roll" ? "— Roll the dice" : "— Take your actions"}
-              </span>
+              <span className="text-slate-300">{statusText()}</span>
             </>
           )}
         </div>
@@ -310,6 +434,8 @@ export default function Game() {
               onVillagePlace={handleVillagePlace}
               onTownPlace={handleTownPlace}
               onRoadPlace={handleRoadPlace}
+              robberMode={isRobberMode}
+              onRobberPlace={handleRobberPlace}
             />
           </div>
 
@@ -335,7 +461,10 @@ export default function Game() {
             <DiceDisplay die1={dice?.die1 ?? null} die2={dice?.die2 ?? null} />
             <button
               onClick={handleRollDice}
-              disabled={gamePhase === "playing" && (turnPhase === "actions" || !currentPlayer.isHuman)}
+              disabled={
+                gamePhase === "playing" &&
+                (turnPhase === "actions" || !currentPlayer.isHuman || robberState !== null)
+              }
               className="px-2.5 py-1 bg-red-700 hover:bg-red-600 active:bg-red-800
                          text-white font-bold rounded transition-colors
                          text-[10px] uppercase tracking-widest
@@ -377,12 +506,13 @@ export default function Game() {
               {(["road", "village", "town"] as const).map((mode) => (
                 <button
                   key={mode}
-                  onClick={() => setPlacementMode(prev => prev === mode ? null : mode)}
+                  onClick={() => robberState === null && setPlacementMode(prev => prev === mode ? null : mode)}
+                  disabled={robberState !== null}
                   className={`flex-1 px-4 py-2 rounded-lg font-semibold text-xs uppercase tracking-widest transition-colors ${
                     placementMode === mode
                       ? "bg-yellow-400 text-slate-900 shadow-[0_0_12px_rgba(250,204,21,0.5)]"
                       : "bg-slate-700 text-slate-200 hover:bg-slate-600"
-                  }`}
+                  } disabled:opacity-40 disabled:cursor-not-allowed`}
                 >
                   {mode === "village" ? "Village" : mode === "town" ? "Town" : "Road"}
                 </button>
@@ -404,7 +534,7 @@ export default function Game() {
               >
                 Draw ({devDeck.length})
               </button>
-              
+
               <button
                 onClick={handlePlayDevCard}
                 className="flex-1 py-1 bg-slate-700 text-slate-200 hover:bg-slate-600
@@ -437,7 +567,7 @@ export default function Game() {
           </div>
 
           {/* End Turn */}
-          {turnPhase === "actions" && currentPlayer.isHuman && (
+          {turnPhase === "actions" && currentPlayer.isHuman && robberState === null && (
             <button
               onClick={handleEndTurn}
               className="px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest

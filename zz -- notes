@@ -1,9 +1,22 @@
 todo:
-    create a player component
 
-    setup logic
+    knight card played
 
-    game turns
+    player card component
+        - dev cards displayed
+        - resources displayed
+
+    improve placement flow
+
+    bank trade
+
+    player trade  -- human turn only
+
+    player trade - npc turn
+
+    npc AI
+
+
 
 
 

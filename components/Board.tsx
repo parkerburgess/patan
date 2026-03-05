@@ -21,6 +21,9 @@ interface Props {
   onVillagePlace: (locationId: number) => void;
   onTownPlace: (locationId: number) => void;
   onRoadPlace: (locationId: number) => void;
+  /** When true, clicking a hex tile places the robber there. */
+  robberMode?: boolean;
+  onRobberPlace?: (tileId: number) => void;
 }
 
 interface RoadEdge {
@@ -72,6 +75,8 @@ export default function Board({
   onVillagePlace,
   onTownPlace,
   onRoadPlace,
+  robberMode = false,
+  onRobberPlace,
 }: Props) {
   const margin = HEX_SIZE * BOARD_MARGIN_RATIO;
   const halfW = HEX_SIZE * SQRT3 * 2.5 + margin;
@@ -160,7 +165,18 @@ export default function Board({
       {/* Hex tiles */}
       {board.tiles.map((tile) => {
         const { x, y } = axialToPixel(tile.coord, HEX_SIZE);
-        return <HexTile key={tile.id} tile={tile} size={HEX_SIZE} cx={x} cy={y} />;
+        const isTarget = robberMode && !tile.hasRobber;
+        return (
+          <HexTile
+            key={tile.id}
+            tile={tile}
+            size={HEX_SIZE}
+            cx={x}
+            cy={y}
+            isRobberTarget={isTarget}
+            onRobberClick={isTarget ? () => onRobberPlace?.(tile.id) : undefined}
+          />
+        );
       })}
 
       {/* Roads — ownership-colored */}

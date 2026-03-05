@@ -1,7 +1,8 @@
 import { useEffect, useRef, type Dispatch, type SetStateAction } from "react";
-import type { BoardState, Player, TurnPhase } from "@/types/game";
+import type { BoardState, Player, PlayableResource, TurnPhase } from "@/types/game";
 import { rollDice } from "@/lib/dice";
-import { distributeResources, processRobber } from "@/lib/resources";
+import { applyNpcDiscards, distributeResources, moveRobber, stealRandomResource, totalResources } from "@/lib/resources";
+import { npcChooseRobberTile } from "@/lib/robber";
 import { updateRoadLengths } from "@/lib/roads";
 
 interface UseNpcAutoPlayOptions {
@@ -14,6 +15,9 @@ interface UseNpcAutoPlayOptions {
   setBoard: Dispatch<SetStateAction<BoardState>>;
   setActivePlayerIdx: Dispatch<SetStateAction<number>>;
   setTurnPhase: Dispatch<SetStateAction<TurnPhase>>;
+  setRobberState: Dispatch<SetStateAction<"human-discard" | "place-robber" | null>>;
+  setDiscardAmount: Dispatch<SetStateAction<number>>;
+  setPendingNpcRobber: Dispatch<SetStateAction<{ tileId: number } | null>>;
   addLog: (message: string, playerColor: string) => void;
 }
 
@@ -27,6 +31,9 @@ export function useNpcAutoPlay({
   setBoard,
   setActivePlayerIdx,
   setTurnPhase,
+  setRobberState,
+  setDiscardAmount,
+  setPendingNpcRobber,
   addLog,
 }: UseNpcAutoPlayOptions) {
   const boardRef = useRef(board);
@@ -39,20 +46,67 @@ export function useNpcAutoPlay({
     if (playersRef.current[activePlayerIdx].isHuman) return;
 
     const rollTimer = setTimeout(() => {
-      const player = playersRef.current[activePlayerIdx];
-      addLog(`${player.name}'s turn`, player.color);
+      const currentPlayers = playersRef.current;
+      const npcPlayer = currentPlayers[activePlayerIdx];
+      addLog(`${npcPlayer.name}'s turn`, npcPlayer.color);
 
       const result = rollDice();
       setDice(result);
-      addLog(`${player.name} rolled ${result.total}`, player.color);
+      addLog(`${npcPlayer.name} rolled ${result.total}`, npcPlayer.color);
 
       if (result.total !== 7) {
         setPlayers(prev => distributeResources(boardRef.current, prev, result.total));
-      } else {
-        setBoard(prev => processRobber(prev));
+        const endTimer = setTimeout(() => {
+          addLog(`${npcPlayer.name} ended their turn`, npcPlayer.color);
+          setPlayers(prev => updateRoadLengths(boardRef.current, prev));
+          setActivePlayerIdx(prev => (prev + 1) % playersRef.current.length);
+          setTurnPhase("pre-roll");
+          setDice(null);
+        }, 600);
+        return () => clearTimeout(endTimer);
       }
+
+      // ── 7 rolled ────────────────────────────────────────────────────────────
+
+      // Apply NPC discards (including this NPC if they have >7)
+      currentPlayers.forEach(p => {
+        if (!p.isHuman && totalResources(p) > 7) {
+          addLog(`${p.name} discarded ${Math.floor(totalResources(p) / 2)} cards`, p.color);
+        }
+      });
+      const afterNpcDiscard = applyNpcDiscards(currentPlayers);
+
+      // Choose the robber tile
+      const tileId = npcChooseRobberTile(boardRef.current, npcPlayer.id, afterNpcDiscard);
+
+      // Check if the human needs to discard
+      const humanPlayer = currentPlayers.find(p => p.isHuman);
+      const humanTotal = humanPlayer ? totalResources(humanPlayer) : 0;
+
+      if (humanTotal > 7) {
+        // Pause and wait for human to discard before completing robber
+        setPlayers(afterNpcDiscard);
+        setDiscardAmount(Math.floor(humanTotal / 2));
+        setPendingNpcRobber({ tileId });
+        setRobberState("human-discard");
+        // The NPC turn will be completed by handleHumanDiscard in Game.tsx
+        return;
+      }
+
+      // No human discard needed — resolve robber immediately
+      const newBoard = moveRobber(boardRef.current, tileId);
+      setBoard(newBoard);
+      addLog(`${npcPlayer.name} moved the robber`, npcPlayer.color);
+
+      const { players: afterSteal, stolen, fromName } =
+        stealRandomResource(newBoard, tileId, npcPlayer.id, afterNpcDiscard);
+      if (stolen && fromName) {
+        addLog(`${npcPlayer.name} stole ${stolen} from ${fromName}`, npcPlayer.color);
+      }
+      setPlayers(afterSteal);
+
       const endTimer = setTimeout(() => {
-        addLog(`${player.name} ended their turn`, player.color);
+        addLog(`${npcPlayer.name} ended their turn`, npcPlayer.color);
         setPlayers(prev => updateRoadLengths(boardRef.current, prev));
         setActivePlayerIdx(prev => (prev + 1) % playersRef.current.length);
         setTurnPhase("pre-roll");

@@ -16,6 +16,8 @@ interface Props {
   size: number; // circumradius R (center to corner)
   cx: number;   // pixel center x
   cy: number;   // pixel center y
+  isRobberTarget?: boolean;
+  onRobberClick?: () => void;
 }
 
 const RESOURCE_COLORS: Record<ResourceType, string> = {
@@ -92,7 +94,7 @@ function ProbabilityDots({
   );
 }
 
-export default function HexTile({ tile, size, cx, cy }: Props) {
+export default function HexTile({ tile, size, cx, cy, isRobberTarget = false, onRobberClick }: Props) {
   const points = hexPointsString(cx, cy, size);
   const fill = RESOURCE_COLORS[tile.resource];
   const isRed = tile.dieNumber === 6 || tile.dieNumber === 8;
@@ -167,6 +169,18 @@ export default function HexTile({ tile, size, cx, cy }: Props) {
           />
         ) : (
           <></>
+      )}
+
+      {/* Robber placement target overlay */}
+      {isRobberTarget && (
+        <polygon
+          points={points}
+          fill="rgba(250, 204, 21, 0.25)"
+          stroke="#facc15"
+          strokeWidth={3}
+          cursor="pointer"
+          onClick={onRobberClick}
+        />
       )}
 
       {/* Robber */}
