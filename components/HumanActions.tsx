@@ -1,10 +1,9 @@
 "use client";
 
-import type { DiceRoll } from "@/types/game";
 import DiceDisplay from "./DiceDisplay";
 
 interface Props {
-  dice: DiceRoll | null;
+  dice: { die1: number; die2: number } | null;
   canRoll: boolean;
   canTrade: boolean;
   canEndTurn: boolean;
