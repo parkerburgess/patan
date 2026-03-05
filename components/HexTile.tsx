@@ -21,12 +21,12 @@ interface Props {
 }
 
 const RESOURCE_COLORS: Record<ResourceType, string> = {
-  wood:   "#2D6A2D",
-  brick:  "#B22222",
-  sheep:  "#7EC850",
-  wheat:  "#DAA520",
-  stone:  "#708090",
-  desert: "#E8D5A3",
+  wood:   "#4A6B3A",
+  brick:  "#A8432E",
+  sheep:  "#7AB84A",
+  wheat:  "#D4A535",
+  stone:  "#7A7060",
+  desert: "#D4C090",
 };
 
 const RESOURCE_LABELS: Record<ResourceType, string> = {
@@ -105,6 +105,7 @@ export default function HexTile({ tile, size, cx, cy, isRobberTarget = false, on
 
   const hexClipId = `hex-clip-${tile.id}`;
   const tokenClipId = `token-clip-${tile.id}`;
+  const depthGradId = `depth-grad-${tile.id}`;
 
   return (
     <g>
@@ -117,6 +118,10 @@ export default function HexTile({ tile, size, cx, cy, isRobberTarget = false, on
             <circle cx={cx} cy={cy} r={tokenR} />
           </clipPath>
         )}
+        <radialGradient id={depthGradId} cx={cx} cy={cy} r={size} gradientUnits="userSpaceOnUse">
+          <stop offset="30%" stopColor="transparent" stopOpacity="0" />
+          <stop offset="100%" stopColor="#2C1A0A" stopOpacity="0.45" />
+        </radialGradient>
       </defs>
 
      
@@ -125,8 +130,8 @@ export default function HexTile({ tile, size, cx, cy, isRobberTarget = false, on
       <polygon
         points={points}
         fill={fill}
-        stroke="#3D2B1F"
-        strokeWidth={2}
+        stroke="#5C3D1E"
+        strokeWidth={3}
       />
 
        {/* Resource image  clipped to hex */}
@@ -138,9 +143,16 @@ export default function HexTile({ tile, size, cx, cy, isRobberTarget = false, on
           width={size * 1.5}
           height={size * 1.5}
           preserveAspectRatio="xMidYMid slice"
-          opacity={0.60}
+          opacity={0.78}
         />
       )}
+
+      {/* Depth shading — dark edges, bright centre */}
+      <polygon
+        points={points}
+        fill={`url(#${depthGradId})`}
+        style={{ pointerEvents: "none" }}
+      />
 
       {/* Resource label — shown only when no image */}
       {!resourceImage && (
@@ -185,15 +197,23 @@ export default function HexTile({ tile, size, cx, cy, isRobberTarget = false, on
 
       {/* Robber */}
       {tile.hasRobber && (
-        <image
-          href="/images/robber.png"
-          x={cx - size * 1.5}
-          y={cy - size}
-          width={size * 2}
-          height={size * 2}
-          preserveAspectRatio="xMidYMid meet"
-          style={{ pointerEvents: "none" }}
-        />
+        <>
+          <defs>
+            <filter id={`robber-shadow-${tile.id}`} x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx={0} dy={size * 0.08} stdDeviation={size * 0.12} floodColor="#000000" floodOpacity={0.7} />
+            </filter>
+          </defs>
+          <image
+            href="/images/robber.png"
+            x={cx - size * 1.5}
+            y={cy - size}
+            width={size * 2}
+            height={size * 2}
+            preserveAspectRatio="xMidYMid meet"
+            filter={`url(#robber-shadow-${tile.id})`}
+            style={{ pointerEvents: "none" }}
+          />
+        </>
       )}
     </g>
   );
