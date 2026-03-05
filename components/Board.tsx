@@ -15,7 +15,8 @@ interface Props {
   players: Player[];
   activePlayerId: number;
   isSetup: boolean;
-  placementMode: "village" | "town" | "road" | null;
+  /** Which placement modes are currently active. Multiple can be active simultaneously. */
+  activeModes: ("village" | "town" | "road")[];
   /** During setup road phase, only show road spots adjacent to this village. */
   setupLastVillageId?: number | null;
   onVillagePlace: (locationId: number) => void;
@@ -70,7 +71,7 @@ export default function Board({
   players,
   activePlayerId,
   isSetup,
-  placementMode,
+  activeModes,
   setupLastVillageId = null,
   onVillagePlace,
   onTownPlace,
@@ -91,6 +92,10 @@ export default function Board({
     () => new Map(players.map(p => [p.id, p])),
     [players],
   );
+
+  const roadModeActive    = activeModes.includes("road");
+  const villageModeActive = activeModes.includes("village");
+  const townModeActive    = activeModes.includes("town");
 
   // Compute road edges from roadLocations (preferred) or tile geometry (fallback)
   const roadEdges = useMemo((): RoadEdge[] => {
@@ -117,14 +122,12 @@ export default function Board({
 
   const activePlayer = players.find(p => p.id === activePlayerId);
 
-  // Valid road ids when in road placement mode
   const validRoadIds = useMemo(() => {
-    if (placementMode !== "road") return new Set<number>();
+    if (!roadModeActive) return new Set<number>();
     return new Set(
       board.roadLocations
         .filter(r => {
           if (!canPlaceRoad(board, r.id, activePlayerId, isSetup, activePlayer?.resources)) return false;
-          // During setup, restrict to roads adjacent to the just-placed village
           if (isSetup && setupLastVillageId !== null) {
             return r.villageLocationId1 === setupLastVillageId ||
               r.villageLocationId2 === setupLastVillageId;
@@ -133,20 +136,25 @@ export default function Board({
         })
         .map(r => r.id)
     );
-  }, [board, placementMode, activePlayerId, isSetup, setupLastVillageId, activePlayer]);
+  }, [board, activeModes, activePlayerId, isSetup, setupLastVillageId, activePlayer]);
 
-  // Valid village/town ids when in village or town placement mode
   const validVillageIds = useMemo(() => {
-    if (placementMode !== "village" && placementMode !== "town") return new Set<number>();
+    if (!villageModeActive) return new Set<number>();
     return new Set(
       board.villageLocations
-        .filter(loc => placementMode === "village"
-          ? canPlaceVillage(board, loc.id, activePlayerId, isSetup, activePlayer?.resources)
-          : canPlaceTown(board, loc.id, activePlayerId, activePlayer?.resources)
-        )
+        .filter(loc => canPlaceVillage(board, loc.id, activePlayerId, isSetup, activePlayer?.resources))
         .map(loc => loc.id)
     );
-  }, [board, placementMode, activePlayerId, isSetup, activePlayer]);
+  }, [board, activeModes, activePlayerId, isSetup, activePlayer]);
+
+  const validTownIds = useMemo(() => {
+    if (!townModeActive) return new Set<number>();
+    return new Set(
+      board.villageLocations
+        .filter(loc => canPlaceTown(board, loc.id, activePlayerId, activePlayer?.resources))
+        .map(loc => loc.id)
+    );
+  }, [board, activeModes, activePlayerId, activePlayer]);
 
   return (
     <svg
@@ -194,8 +202,8 @@ export default function Board({
         );
       })}
 
-      {/* Road click targets — wide transparent strokes when in road placement mode */}
-      {placementMode === "road" && board.roadLocations.map((r) => {
+      {/* Road click targets */}
+      {roadModeActive && board.roadLocations.map((r) => {
         if (!validRoadIds.has(r.id)) return null;
         const loc1 = villageById.get(r.villageLocationId1);
         const loc2 = villageById.get(r.villageLocationId2);
@@ -218,8 +226,8 @@ export default function Board({
       {/* Village / town spots */}
       {board.villageLocations.map((loc) => {
         const owner = loc.ownerId !== null ? playerById.get(loc.ownerId) ?? null : null;
-        const spotMode = placementMode === "village" ? "place-village"
-          : placementMode === "town" ? "place-town"
+        const spotMode = validVillageIds.has(loc.id) ? "place-village"
+          : validTownIds.has(loc.id) ? "place-town"
           : "idle";
         return (
           <VillageSpot
@@ -227,7 +235,7 @@ export default function Board({
             location={loc}
             playerColor={owner?.color ?? null}
             mode={spotMode}
-            isValid={validVillageIds.has(loc.id)}
+            isValid={validVillageIds.has(loc.id) || validTownIds.has(loc.id)}
             onVillageClick={() => onVillagePlace(loc.id)}
             onTownClick={() => onTownPlace(loc.id)}
           />

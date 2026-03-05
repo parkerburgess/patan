@@ -331,12 +331,23 @@ export default function Game() {
 
   // ── Derived UI values ────────────────────────────────────────────────────────
 
-  // Only pass placement mode to Board when it's the human player's turn and no robber active
-  const activePlacementMode = (currentPlayer.isHuman && robberState === null) ? placementMode : null;
   const isRobberMode = robberState === "place-robber" && currentPlayer.isHuman;
 
   const isHumanActionPhase = gamePhase === "playing" && turnPhase === "actions"
     && currentPlayer.isHuman && robberState === null;
+
+  // Derive which placement modes are active for the board overlay
+  const activeModes = ((): ("village" | "town" | "road")[] => {
+    if (robberState !== null || !currentPlayer.isHuman) return [];
+    if (gamePhase === "setup") return placementMode ? [placementMode as "village" | "road"] : [];
+    if (!isHumanActionPhase) return [];
+    const res = currentPlayer.resources;
+    const modes: ("village" | "town" | "road")[] = [];
+    if (res.wood >= 1 && res.brick >= 1) modes.push("road");
+    if (res.wood >= 1 && res.brick >= 1 && res.sheep >= 1 && res.wheat >= 1) modes.push("village");
+    if (res.wheat >= 2 && res.stone >= 3) modes.push("town");
+    return modes;
+  })();
 
   // Status banner text
   const statusText = (() => {
@@ -397,7 +408,7 @@ export default function Game() {
               players={players}
               activePlayerId={currentPlayer.id}
               isSetup={gamePhase === "setup"}
-              placementMode={activePlacementMode}
+              activeModes={activeModes}
               setupLastVillageId={setupLastVillageId}
               onVillagePlace={handleVillagePlace}
               onTownPlace={handleTownPlace}
@@ -474,27 +485,6 @@ export default function Game() {
               >
                 Player
               </button>
-            </div>
-          </fieldset>
-
-          {/* Place */}
-          <fieldset className="border border-slate-500 rounded px-2 pb-2">
-            <legend className="text-[10px] text-slate-400 px-1">Place</legend>
-            <div className="flex gap-2">
-              {(["road", "village", "town"] as const).map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => robberState === null && setPlacementMode(prev => prev === mode ? null : mode)}
-                  disabled={robberState !== null}
-                  className={`flex-1 px-4 py-2 rounded-lg font-semibold text-xs uppercase tracking-widest transition-colors ${
-                    placementMode === mode
-                      ? "bg-yellow-400 text-slate-900 shadow-[0_0_12px_rgba(250,204,21,0.5)]"
-                      : "bg-slate-700 text-slate-200 hover:bg-slate-600"
-                  } disabled:opacity-40 disabled:cursor-not-allowed`}
-                >
-                  {mode === "village" ? "Village" : mode === "town" ? "Town" : "Road"}
-                </button>
-              ))}
             </div>
           </fieldset>
 
