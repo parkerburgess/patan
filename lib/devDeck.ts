@@ -13,7 +13,7 @@ export function buildDevDeck(): DevCard[] {
   const cards: DevCard[] = [];
   for (const [type, count] of Object.entries(DEV_DECK_COUNTS) as [DevCardType, number][]) {
     for (let i = 0; i < count; i++) {
-      cards.push({ type });
+      cards.push({ type, drawnOnTurn: 0 });
     }
   }
 

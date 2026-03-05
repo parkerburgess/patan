@@ -58,6 +58,32 @@ function longestRoadForPlayer(board: BoardState, playerId: number): number {
  *  - Current holder keeps it unless another player strictly exceeds their length
  *  - If no one holds it and a player reaches 5+, the longest earns it (first on tie)
  */
+/** Recalculates hasLargestArmy for all players after an armyCount change. */
+export function updateLargestArmy(players: Player[]): Player[] {
+  const counts = players.map(p => p.armyCount);
+  const maxCount = Math.max(...counts);
+  const holderIdx = players.findIndex(p => p.hasLargestArmy);
+
+  let newHolderIdx = holderIdx;
+
+  if (maxCount < 3) {
+    newHolderIdx = -1;
+  } else if (holderIdx === -1) {
+    newHolderIdx = counts.indexOf(maxCount);
+  } else {
+    const holderCount = counts[holderIdx];
+    const challenger = counts.findIndex((c, i) => i !== holderIdx && c > holderCount);
+    if (challenger !== -1) newHolderIdx = challenger;
+  }
+
+  return players.map((p, i) => {
+    const had = p.hasLargestArmy;
+    const has = i === newHolderIdx;
+    const vpDelta = (has ? 1 : 0) - (had ? 1 : 0);
+    return { ...p, hasLargestArmy: has, victoryPoints: p.victoryPoints + vpDelta * 2 };
+  });
+}
+
 export function updateRoadLengths(board: BoardState, players: Player[]): Player[] {
   const lengths = players.map(p => longestRoadForPlayer(board, p.id));
   const maxLength = Math.max(...lengths);
@@ -77,9 +103,10 @@ export function updateRoadLengths(board: BoardState, players: Player[]): Player[
     if (challenger !== -1) newHolderIdx = challenger;
   }
 
-  return players.map((p, i) => ({
-    ...p,
-    roadLength: lengths[i],
-    hasLongestRoad: i === newHolderIdx,
-  }));
+  return players.map((p, i) => {
+    const had = p.hasLongestRoad;
+    const has = i === newHolderIdx;
+    const vpDelta = (has ? 1 : 0) - (had ? 1 : 0);
+    return { ...p, roadLength: lengths[i], hasLongestRoad: has, victoryPoints: p.victoryPoints + vpDelta * 2 };
+  });
 }

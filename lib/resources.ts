@@ -140,3 +140,39 @@ export function stealRandomResource(
 
   return { players: newPlayers, stolen, fromName: fromPlayer.name };
 }
+
+const PLAYABLE_RESOURCES: PlayableResource[] = ["wood", "brick", "sheep", "wheat", "stone"];
+
+/** Take all of `resource` from every other player and give it to `playerId`. */
+export function applyMonopoly(
+  players: Player[],
+  playerId: number,
+  resource: PlayableResource,
+): { players: Player[]; totalStolen: number } {
+  let totalStolen = 0;
+
+  const updated = players.map(p => {
+    if (p.id === playerId) return p;
+    const amount = p.resources[resource];
+    if (amount === 0) return p;
+    totalStolen += amount;
+    return { ...p, resources: { ...p.resources, [resource]: 0 } };
+  });
+
+  const withGain = updated.map(p => {
+    if (p.id !== playerId) return p;
+    return { ...p, resources: { ...p.resources, [resource]: p.resources[resource] + totalStolen } };
+  });
+
+  return { players: withGain, totalStolen };
+}
+
+/** Pick the resource type that opponents hold the most of (used by NPC monopoly). */
+export function npcChooseMonopolyResource(players: Player[], npcPlayerId: number): PlayableResource {
+  const totals: Record<PlayableResource, number> = { wood: 0, brick: 0, sheep: 0, wheat: 0, stone: 0 };
+  for (const p of players) {
+    if (p.id === npcPlayerId) continue;
+    for (const res of PLAYABLE_RESOURCES) totals[res] += p.resources[res];
+  }
+  return PLAYABLE_RESOURCES.reduce((best, res) => totals[res] > totals[best] ? res : best, PLAYABLE_RESOURCES[0]);
+}

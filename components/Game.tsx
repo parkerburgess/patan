@@ -11,19 +11,21 @@ import {
 import {
   addResources, subtractResources, collectSetupResources,
   distributeResources, applyNpcDiscards, moveRobber,
-  stealRandomResource, totalResources,
+  stealRandomResource, totalResources, applyMonopoly,
 } from "@/lib/resources";
-import { updateRoadLengths } from "@/lib/roads";
+import { updateRoadLengths, updateLargestArmy } from "@/lib/roads";
 import { useNpcSetupTurns } from "@/hooks/useNpcSetupTurns";
 import { useNpcAutoPlay } from "@/hooks/useNpcAutoPlay";
 import Board from "@/components/Board";
 import PlayerCard from "@/components/PlayerCard";
-import DiceDisplay from "@/components/DiceDisplay";
 import GameLog, { type LogEntry } from "@/components/GameLog";
 import DiscardModal from "@/components/DiscardModal";
 import BankTradeModal, { getExchangeRates } from "@/components/BankTradeModal";
+import YearOfPlentyModal from "@/components/YearOfPlentyModal";
+import MonopolyModal from "@/components/MonopolyModal";
 import HumanHand from "@/components/HumanHand";
-import type { BoardState, Player, DevCard, PlayableResource, TurnPhase } from "@/types/game";
+import HumanActions from "@/components/HumanActions";
+import type { BoardState, Player, DevCard, PlayableResource, TurnPhase, DevCardType } from "@/types/game";
 import {
   EMPTY_RESOURCES, ROAD_COST, VILLAGE_COST, TOWN_COST, DEV_CARD_COST,
   INITIAL_PLAYERS,
@@ -58,6 +60,10 @@ export default function Game() {
   const [pendingNpcRobber, setPendingNpcRobber] = useState<{ tileId: number } | null>(null);
 
   const [bankTradeOpen, setBankTradeOpen] = useState(false);
+  const [roadBuildingRemaining, setRoadBuildingRemaining] = useState(0);
+  const [yearOfPlentyOpen, setYearOfPlentyOpen] = useState(false);
+  const [monopolyOpen, setMonopolyOpen] = useState(false);
+  const [turnNumber, setTurnNumber] = useState(1);
 
   function addLog(message: string, playerColor: string) {
     const id = nextLogId.current++;
@@ -75,7 +81,7 @@ export default function Game() {
     gamePhase, activePlayerIdx, board, players,
     setDice, setPlayers, setBoard, setActivePlayerIdx, setTurnPhase,
     setRobberState, setDiscardAmount, setPendingNpcRobber,
-    addLog,
+    setTurnNumber, addLog,
   });
 
   // ── Derived state ─────────────────────────────────────────────────────────────
@@ -121,19 +127,32 @@ export default function Game() {
   function handleRoadPlace(roadId: number) {
     if (robberState !== null) return;
     const isSetup = gamePhase === "setup";
-    if (!canPlaceRoad(board, roadId, currentPlayer.id, isSetup, currentPlayer.resources)) return;
+    const isFreeRoad = roadBuildingRemaining > 0;
+    // Skip resource check for free roads (road building card)
+    const resourcesForCheck = isFreeRoad ? undefined : currentPlayer.resources;
+    if (!canPlaceRoad(board, roadId, currentPlayer.id, isSetup, resourcesForCheck)) return;
 
     addLog(`${currentPlayer.name} placed a road`, currentPlayer.color);
-    setBoard(placeRoad(board, roadId, currentPlayer.id));
-    setPlayers(prev => prev.map((p, idx) => {
-      if (idx !== activePlayerIdx) return p;
-      const base = { ...p, roadsAvailable: p.roadsAvailable - 1 };
-      if (!isSetup) {
-        return { ...base, resources: subtractResources(p.resources, ROAD_COST) };
-      }
-      return base;
-    }));
+    const newBoard = placeRoad(board, roadId, currentPlayer.id);
+    setBoard(newBoard);
+    setPlayers(prev => {
+      const updated = prev.map((p, idx) => {
+        if (idx !== activePlayerIdx) return p;
+        const base = { ...p, roadsAvailable: p.roadsAvailable - 1 };
+        if (!isSetup && !isFreeRoad) {
+          return { ...base, resources: subtractResources(p.resources, ROAD_COST) };
+        }
+        return base;
+      });
+      return updateRoadLengths(newBoard, updated);
+    });
     setSetupLastVillageId(null);
+
+    if (isFreeRoad) {
+      const next = roadBuildingRemaining - 1;
+      setRoadBuildingRemaining(next);
+      return;
+    }
 
     if (isSetup) {
       addLog(`${currentPlayer.name} ended their turn`, currentPlayer.color);
@@ -265,11 +284,11 @@ export default function Game() {
 
   function handleEndTurn() {
     addLog(`${currentPlayer.name} ended their turn`, currentPlayer.color);
-    setPlayers(prev => updateRoadLengths(board, prev));
     setActivePlayerIdx(prev => (prev + 1) % players.length);
     setTurnPhase("pre-roll");
     setDice(null);
     setPlacementMode(null);
+    setTurnNumber(prev => prev + 1);
   }
 
   function handleDrawDevCard() {
@@ -284,10 +303,87 @@ export default function Game() {
       if (idx !== activePlayerIdx) return p;
       return {
         ...p,
-        devCards: [...p.devCards, card],
+        devCards: [...p.devCards, { ...card, drawnOnTurn: turnNumber }],
         resources: subtractResources(p.resources, DEV_CARD_COST),
+        victoryPoints: p.victoryPoints + (card.type === "victoryPoint" ? 1 : 0),
       };
     }));
+  }
+
+  function handleUseDevCard(type: DevCardType) {
+    const canPlayPreRoll = gamePhase === "playing" && currentPlayer.isHuman && robberState === null && roadBuildingRemaining === 0;
+    if (type === "knight" ? !canPlayPreRoll : !isHumanActionPhase) return;
+    // Cannot play a card the same turn it was drawn (except victoryPoint, which is passive)
+    const cardInHand = currentPlayer.devCards.find(c => c.type === type);
+    if (cardInHand && type !== "victoryPoint" && cardInHand.drawnOnTurn === turnNumber) return;
+    if (type === "roadBuilding") {
+      const roadsLeft = currentPlayer.roadsAvailable;
+      if (roadsLeft === 0) return;
+      // Remove one roadBuilding card from hand
+      setPlayers(prev => prev.map((p, idx) => {
+        if (idx !== activePlayerIdx) return p;
+        const idx2 = p.devCards.findIndex(c => c.type === "roadBuilding");
+        if (idx2 === -1) return p;
+        const devCards = [...p.devCards];
+        devCards.splice(idx2, 1);
+        return { ...p, devCards };
+      }));
+      setRoadBuildingRemaining(Math.min(2, roadsLeft));
+      addLog(`${currentPlayer.name} played Road Building`, currentPlayer.color);
+    }
+    if (type === "knight") {
+      // Remove card, increment army count, update largest army immediately
+      setPlayers(prev => {
+        const updated = prev.map((p, idx) => {
+          if (idx !== activePlayerIdx) return p;
+          const devCards = [...p.devCards];
+          devCards.splice(devCards.findIndex(c => c.type === "knight"), 1);
+          return { ...p, devCards, armyCount: p.armyCount + 1 };
+        });
+        return updateLargestArmy(updated);
+      });
+      setRobberState("place-robber");
+      addLog(`${currentPlayer.name} played a Knight`, currentPlayer.color);
+    }
+    if (type === "yearOfPlenty") {
+      setYearOfPlentyOpen(true);
+    }
+    if (type === "monopoly") {
+      setMonopolyOpen(true);
+    }
+  }
+
+  function handleYearOfPlentyConfirm(first: PlayableResource, second: PlayableResource) {
+    // Remove the card from hand and grant both resources
+    setPlayers(prev => prev.map((p, idx) => {
+      if (idx !== activePlayerIdx) return p;
+      const idx2 = p.devCards.findIndex(c => c.type === "yearOfPlenty");
+      if (idx2 === -1) return p;
+      const devCards = [...p.devCards];
+      devCards.splice(idx2, 1);
+      const gained: Record<PlayableResource, number> = { wood: 0, brick: 0, sheep: 0, wheat: 0, stone: 0 };
+      gained[first]++;
+      gained[second]++;
+      return { ...p, devCards, resources: addResources(p.resources, gained) };
+    }));
+    addLog(`${currentPlayer.name} played Year of Plenty`, currentPlayer.color);
+    setYearOfPlentyOpen(false);
+  }
+
+  function handleMonopolyConfirm(resource: PlayableResource) {
+    const idx2 = currentPlayer.devCards.findIndex(c => c.type === "monopoly");
+    if (idx2 === -1) return;
+    // Remove the card first
+    const withCardRemoved = players.map((p, idx) => {
+      if (idx !== activePlayerIdx) return p;
+      const devCards = [...p.devCards];
+      devCards.splice(idx2, 1);
+      return { ...p, devCards };
+    });
+    const { players: updated, totalStolen } = applyMonopoly(withCardRemoved, currentPlayer.id, resource);
+    setPlayers(updated);
+    addLog(`${currentPlayer.name} played Monopoly on ${resource} and stole ${totalStolen}`, currentPlayer.color);
+    setMonopolyOpen(false);
   }
 
   function handleBankTrade(give: PlayableResource, receive: PlayableResource) {
@@ -304,10 +400,6 @@ export default function Game() {
     }));
     addLog(`${currentPlayer.name} traded ${cost}× ${give} for 1× ${receive}`, currentPlayer.color);
     setBankTradeOpen(false);
-  }
-
-  function handlePlayDevCard() {
-    // TODO: show card-selection UI and dispatch per DevCardType
   }
 
   function handleRegenerateBoard() {
@@ -327,6 +419,10 @@ export default function Game() {
     setDiscardAmount(0);
     setPendingNpcRobber(null);
     setBankTradeOpen(false);
+    setRoadBuildingRemaining(0);
+    setYearOfPlentyOpen(false);
+    setMonopolyOpen(false);
+    setTurnNumber(1);
   }
 
   // ── Derived UI values ────────────────────────────────────────────────────────
@@ -334,12 +430,13 @@ export default function Game() {
   const isRobberMode = robberState === "place-robber" && currentPlayer.isHuman;
 
   const isHumanActionPhase = gamePhase === "playing" && turnPhase === "actions"
-    && currentPlayer.isHuman && robberState === null;
+    && currentPlayer.isHuman && robberState === null && roadBuildingRemaining === 0;
 
   // Derive which placement modes are active for the board overlay
   const activeModes = ((): ("village" | "town" | "road")[] => {
     if (robberState !== null || !currentPlayer.isHuman) return [];
     if (gamePhase === "setup") return placementMode ? [placementMode as "village" | "road"] : [];
+    if (roadBuildingRemaining > 0) return ["road"];
     if (!isHumanActionPhase) return [];
     const res = currentPlayer.resources;
     const modes: ("village" | "town" | "road")[] = [];
@@ -357,6 +454,7 @@ export default function Game() {
     }
     if (robberState === "place-robber") return "Place the robber on a hex";
     if (robberState === "human-discard") return "Discard resources";
+    if (roadBuildingRemaining > 0) return `Place ${roadBuildingRemaining} road${roadBuildingRemaining > 1 ? "s" : ""}`;
     return turnPhase === "pre-roll" ? "— Roll the dice" : "— Take your actions";
   })();
 
@@ -384,7 +482,23 @@ export default function Game() {
         />
       )}
 
-      
+      {/* Year of Plenty modal */}
+      {yearOfPlentyOpen && (
+        <YearOfPlentyModal
+          onConfirm={handleYearOfPlentyConfirm}
+          onClose={() => setYearOfPlentyOpen(false)}
+        />
+      )}
+
+      {/* Monopoly modal */}
+      {monopolyOpen && (
+        <MonopolyModal
+          onConfirm={handleMonopolyConfirm}
+          onClose={() => setMonopolyOpen(false)}
+        />
+      )}
+
+
 
       {/* Main row */}
       <div className="flex gap-5 flex-1 min-h-0 justify-center">
@@ -447,79 +561,6 @@ export default function Game() {
               </div>
             )}
 
-          {/* Dice + Roll */}
-          <div className="flex items-center gap-2 bg-slate-800 rounded-lg px-2.5 py-2 shadow">
-            <DiceDisplay die1={dice?.die1 ?? null} die2={dice?.die2 ?? null} />
-            <button
-              onClick={handleRollDice}
-              disabled={gamePhase !== "playing" || turnPhase === "actions" || !currentPlayer.isHuman || robberState !== null}
-              className="px-2.5 py-1 bg-red-700 hover:bg-red-600 active:bg-red-800
-                         text-white font-bold rounded transition-colors
-                         text-[10px] uppercase tracking-widest
-                         disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Roll
-            </button>
-          </div>
-
-          {/* Trades */}
-          <fieldset className="border border-slate-500 rounded px-2 pb-2">
-            <legend className="text-[10px] text-slate-400 px-1">Trades</legend>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setBankTradeOpen(true)}
-                disabled={!isHumanActionPhase}
-                className="flex-1 py-1 bg-red-700 hover:bg-red-600 active:bg-red-800
-                           text-white font-bold rounded transition-colors
-                           text-[10px] uppercase tracking-widest
-                           disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Bank
-              </button>
-              <button
-                disabled={!isHumanActionPhase}
-                className="flex-1 py-1 bg-red-700 hover:bg-red-600 active:bg-red-800
-                           text-white font-bold rounded transition-colors
-                           text-[10px] uppercase tracking-widest
-                           disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Player
-              </button>
-            </div>
-          </fieldset>
-
-          {/* Dev Cards */}
-          <fieldset className="border border-slate-500 rounded px-2 pb-2">
-            <legend className="text-[10px] text-slate-400 px-1">Dev Cards</legend>
-            <div className="flex gap-2">
-              <button
-                onClick={handleDrawDevCard}
-                disabled={
-                  !isHumanActionPhase ||
-                  devDeck.length === 0 ||
-                  currentPlayer.resources.sheep < 1 ||
-                  currentPlayer.resources.wheat < 1 ||
-                  currentPlayer.resources.stone < 1
-                }
-                className="flex-1 py-1 bg-slate-700 text-slate-200 hover:bg-slate-600
-                           rounded text-[10px] uppercase tracking-widest transition-colors
-                           disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Draw ({devDeck.length})
-              </button>
-
-              <button
-                onClick={handlePlayDevCard}
-                disabled={!isHumanActionPhase || currentPlayer.devCards.length === 0}
-                className="flex-1 py-1 bg-slate-700 text-slate-200 hover:bg-slate-600
-                           rounded text-[10px] uppercase tracking-widest transition-colors
-                           disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Play
-              </button>
-            </div>
-          </fieldset>
-
           {/* Game log */}
           <div className="flex flex-col flex-1 min-h-0">
             <button
@@ -563,8 +604,31 @@ export default function Game() {
 
       </div>
 
-      {/* Human hand — resources + dev cards */}
-      <HumanHand player={humanPlayer} />
+      {/* Bottom bar — human hand + actions */}
+      <div className="flex justify-center gap-4">
+        <HumanHand
+          player={humanPlayer}
+          canDraw={
+            isHumanActionPhase &&
+            devDeck.length > 0 &&
+            humanPlayer.resources.sheep >= 1 &&
+            humanPlayer.resources.wheat >= 1 &&
+            humanPlayer.resources.stone >= 1
+          }
+          canPlayKnight={gamePhase === "playing" && currentPlayer.isHuman && robberState === null && roadBuildingRemaining === 0}
+          currentTurnNumber={turnNumber}
+          onDraw={handleDrawDevCard}
+          onUseDevCard={handleUseDevCard}
+        />
+        <HumanActions
+          dice={dice}
+          canRoll={gamePhase === "playing" && turnPhase === "pre-roll" && currentPlayer.isHuman && robberState === null}
+          canTrade={isHumanActionPhase}
+          onRoll={handleRollDice}
+          onBankTrade={() => setBankTradeOpen(true)}
+          onPlayerTrade={() => {}}
+        />
+      </div>
 
     </main>
   );

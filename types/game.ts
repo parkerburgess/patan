@@ -4,6 +4,8 @@ export type TurnPhase = "pre-roll" | "actions";
 
 export interface DevCard {
   type: DevCardType;
+  /** Turn number on which this card was drawn. Cards cannot be played the same turn they are drawn (except victoryPoint). */
+  drawnOnTurn: number;
 }
 export type PlayableResource = Exclude<ResourceType, "desert">;
 export type PortType = ResourceType | "generic";

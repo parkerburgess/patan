@@ -1,9 +1,9 @@
 import { useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import type { BoardState, Player, PlayableResource, TurnPhase } from "@/types/game";
 import { rollDice } from "@/lib/dice";
-import { applyNpcDiscards, distributeResources, moveRobber, stealRandomResource, totalResources } from "@/lib/resources";
+import { applyNpcDiscards, applyMonopoly, npcChooseMonopolyResource, distributeResources, moveRobber, stealRandomResource, totalResources } from "@/lib/resources";
 import { npcChooseRobberTile } from "@/lib/robber";
-import { updateRoadLengths } from "@/lib/roads";
+import { updateRoadLengths, updateLargestArmy } from "@/lib/roads";
 
 interface UseNpcAutoPlayOptions {
   gamePhase: "setup" | "playing";
@@ -18,6 +18,7 @@ interface UseNpcAutoPlayOptions {
   setRobberState: Dispatch<SetStateAction<"human-discard" | "place-robber" | null>>;
   setDiscardAmount: Dispatch<SetStateAction<number>>;
   setPendingNpcRobber: Dispatch<SetStateAction<{ tileId: number } | null>>;
+  setTurnNumber: Dispatch<SetStateAction<number>>;
   addLog: (message: string, playerColor: string) => void;
 }
 
@@ -34,6 +35,7 @@ export function useNpcAutoPlay({
   setRobberState,
   setDiscardAmount,
   setPendingNpcRobber,
+  setTurnNumber,
   addLog,
 }: UseNpcAutoPlayOptions) {
   const boardRef = useRef(board);
@@ -55,12 +57,53 @@ export function useNpcAutoPlay({
       addLog(`${npcPlayer.name} rolled ${result.total}`, npcPlayer.color);
 
       if (result.total !== 7) {
-        setPlayers(prev => distributeResources(boardRef.current, prev, result.total));
+        let afterRoll = distributeResources(boardRef.current, currentPlayers, result.total);
+
+        // Play any monopoly cards
+        const monopolyCount = npcPlayer.devCards.filter(c => c.type === "monopoly").length;
+        for (let i = 0; i < monopolyCount; i++) {
+          const resource = npcChooseMonopolyResource(afterRoll, npcPlayer.id);
+          const { players: afterMonopoly, totalStolen } = applyMonopoly(afterRoll, npcPlayer.id, resource);
+          // Remove one monopoly card
+          afterRoll = afterMonopoly.map(p => {
+            if (p.id !== npcPlayer.id) return p;
+            const devCards = [...p.devCards];
+            devCards.splice(devCards.findIndex(c => c.type === "monopoly"), 1);
+            return { ...p, devCards };
+          });
+          addLog(`${npcPlayer.name} played Monopoly on ${resource} and stole ${totalStolen}`, npcPlayer.color);
+        }
+
+        // Play any knight cards
+        const knightCount = npcPlayer.devCards.filter(c => c.type === "knight").length;
+        let boardAfterKnights = boardRef.current;
+        let playersAfterKnights = afterRoll;
+        for (let i = 0; i < knightCount; i++) {
+          const tileId = npcChooseRobberTile(boardAfterKnights, npcPlayer.id, playersAfterKnights);
+          boardAfterKnights = moveRobber(boardAfterKnights, tileId);
+          const { players: afterSteal, stolen, fromName } =
+            stealRandomResource(boardAfterKnights, tileId, npcPlayer.id, playersAfterKnights);
+          playersAfterKnights = afterSteal.map(p => {
+            if (p.id !== npcPlayer.id) return p;
+            const devCards = [...p.devCards];
+            devCards.splice(devCards.findIndex(c => c.type === "knight"), 1);
+            return { ...p, devCards, armyCount: p.armyCount + 1 };
+          });
+          addLog(`${npcPlayer.name} played a Knight`, npcPlayer.color);
+          if (stolen && fromName) addLog(`${npcPlayer.name} stole ${stolen} from ${fromName}`, npcPlayer.color);
+        }
+        if (knightCount > 0) {
+          playersAfterKnights = updateLargestArmy(playersAfterKnights);
+          setBoard(boardAfterKnights);
+        }
+
+        setPlayers(playersAfterKnights);
         const endTimer = setTimeout(() => {
           addLog(`${npcPlayer.name} ended their turn`, npcPlayer.color);
           setPlayers(prev => updateRoadLengths(boardRef.current, prev));
           setActivePlayerIdx(prev => (prev + 1) % playersRef.current.length);
           setTurnPhase("pre-roll");
+          setTurnNumber(prev => prev + 1);
           setDice(null);
         }, 600);
         return () => clearTimeout(endTimer);
