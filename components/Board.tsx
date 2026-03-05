@@ -159,7 +159,7 @@ export default function Board({
   return (
     <svg
       viewBox={`${-halfW} ${-halfH} ${halfW * 2} ${halfH * 2}`}
-      className="w-full max-w-5xl mx-auto"
+      className="w-full h-full"
     >
       {/* Ocean background */}
       <ellipse

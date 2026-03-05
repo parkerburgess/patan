@@ -464,7 +464,7 @@ export default function Game() {
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <main className="h-screen bg-slate-900 px-6 py-4 flex flex-col overflow-hidden">
+    <main className="h-screen w-screen bg-slate-900 px-6 py-4 flex flex-col overflow-hidden">
 
       {/* Bank trade modal */}
       {bankTradeOpen && (
@@ -504,7 +504,7 @@ export default function Game() {
 
 
       {/* Main row */}
-      <div className="flex gap-5 flex-1 min-h-0 justify-center">
+      <div className="flex gap-5 flex-1 min-h-0">
 
         {/* Left panel — player cards */}
         <aside className="flex flex-col gap-2 w-40 shrink-0 overflow-hidden">
@@ -571,8 +571,8 @@ export default function Game() {
         </aside>
 
         {/* Center — board + legend */}
-        <div className="flex flex-col items-center shrink-0 overflow-y-auto">
-          <div className="w-[672px] drop-shadow-2xl">
+        <div className="flex flex-col items-center flex-1 min-w-0 overflow-y-auto">
+          <div className="w-full drop-shadow-2xl">
             <Board
               board={board}
               players={players}
