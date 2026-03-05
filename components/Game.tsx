@@ -484,7 +484,7 @@ export default function Game() {
       <div className="flex gap-5 flex-1 min-h-0">
 
         {/* Left panel — player cards */}
-        <aside className="flex flex-col gap-2 w-40 shrink-0 overflow-hidden">
+        <aside className="flex flex-col gap-2 w-56 shrink-0 overflow-hidden">
 
           {/* Status banner */}
           {(gamePhase === "setup" || gamePhase === "playing") && (
