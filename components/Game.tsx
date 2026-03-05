@@ -405,29 +405,6 @@ export default function Game() {
     setBankTradeOpen(false);
   }
 
-  function handleRegenerateBoard() {
-    const newBoard = createBoard();
-    setBoard(newBoard);
-    setPlayers(INITIAL_PLAYERS);
-    setDevDeck(buildDevDeck());
-    setGamePhase("setup");
-    setSetupTurnIndex(0);
-    setPlacementMode("village");
-    setSetupLastVillageId(null);
-    setDice(null);
-    setActivePlayerIdx(newBoard.startingPlayerIdx);
-    setTurnPhase("pre-roll");
-    setLogEntries([]);
-    setRobberState(null);
-    setDiscardAmount(0);
-    setPendingNpcRobber(null);
-    setBankTradeOpen(false);
-    setRoadBuildingRemaining(0);
-    setYearOfPlentyOpen(false);
-    setMonopolyOpen(false);
-    setTurnNumber(1);
-  }
-
   // ── Derived UI values ────────────────────────────────────────────────────────
 
   const isRobberMode = robberState === "place-robber" && currentPlayer.isHuman;
@@ -532,16 +509,6 @@ export default function Game() {
               )}
             </div>
           )}
-          
-          {/* Regen Board */}
-          <button
-            onClick={handleRegenerateBoard}
-            className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 active:bg-amber-600
-                       text-slate-900 font-bold rounded-lg transition-colors
-                       shadow-lg text-xs uppercase tracking-widest"
-          >
-            Regen Board
-          </button>
 
           {orderedPlayers.map((player) => (
             <PlayerCard
@@ -570,9 +537,9 @@ export default function Game() {
 
         </aside>
 
-        {/* Center — board + legend */}
-        <div className="flex flex-col items-center flex-1 min-w-0 overflow-y-auto">
-          <div className="w-full drop-shadow-2xl">
+        {/* Center — board */}
+        <div className="flex items-center justify-center flex-1 min-w-0 min-h-0 overflow-hidden">
+          <div className="w-full h-full drop-shadow-2xl">
             <Board
               board={board}
               players={players}
@@ -593,7 +560,7 @@ export default function Game() {
       </div>
 
       {/* Bottom bar — human hand + actions */}
-      <div className="flex justify-center gap-4">
+      <div className="flex justify-center gap-4 shrink-0 items-stretch pb-3">
         <HumanHand
           player={humanPlayer}
           canDraw={

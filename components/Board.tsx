@@ -161,14 +161,49 @@ export default function Board({
       viewBox={`${-halfW} ${-halfH} ${halfW * 2} ${halfH * 2}`}
       className="w-full h-full"
     >
-      {/* Ocean background */}
-      <ellipse
-        cx={0} cy={0}
-        rx={halfW * 0.97}
-        ry={halfH * 0.97}
-        fill="#3e59d4"
-        opacity={.95}
-      />
+      {/* Ocean — animated wave bands flowing through the oval */}
+      <defs>
+        <clipPath id="ocean-clip">
+          <ellipse cx={0} cy={0} rx={halfW * 0.97} ry={halfH * 0.97} />
+        </clipPath>
+
+        {/* Gradient for one pattern tile — transparent → dark → transparent */}
+        <linearGradient id="wg1" x1="0" y1="0.2" x2="1" y2="0.8">
+          <stop offset="0%"   stopColor="#3e59d4" stopOpacity="0" />
+          <stop offset="45%"  stopColor="#1a2e8e" stopOpacity="0.55" />
+          <stop offset="100%" stopColor="#3e59d4" stopOpacity="0" />
+        </linearGradient>
+        <linearGradient id="wg2" x1="0.1" y1="0" x2="0.9" y2="1">
+          <stop offset="0%"   stopColor="#3e59d4" stopOpacity="0" />
+          <stop offset="50%"  stopColor="#162680" stopOpacity="0.38" />
+          <stop offset="100%" stopColor="#3e59d4" stopOpacity="0" />
+        </linearGradient>
+
+        {/* Tiling patterns — animating x shifts the tile phase across the oval */}
+        <pattern id="wp1" patternUnits="userSpaceOnUse"
+          width={halfW * 1.3} height={halfH * 2.2} y={-halfH * 0.97}>
+          <rect width={halfW * 1.3} height={halfH * 2.2} fill="url(#wg1)" />
+          <animate attributeName="x"
+            from={0} to={halfW * 1.3}
+            dur="11s" repeatCount="indefinite" />
+        </pattern>
+        <pattern id="wp2" patternUnits="userSpaceOnUse"
+          width={halfW * 1.1} height={halfH * 2.2} y={-halfH * 0.97}>
+          <rect width={halfW * 1.1} height={halfH * 2.2} fill="url(#wg2)" />
+          <animate attributeName="x"
+            from={0} to={halfW * 1.1}
+            dur="17s" repeatCount="indefinite" />
+        </pattern>
+      </defs>
+
+      {/* Base ocean fill */}
+      <ellipse cx={0} cy={0} rx={halfW * 0.97} ry={halfH * 0.97} fill="#3e59d4" opacity={0.95} />
+
+      {/* Wave layers — fill entire oval area, clipped to oval shape */}
+      <g clipPath="url(#ocean-clip)">
+        <rect x={-halfW} y={-halfH} width={halfW * 2} height={halfH * 2} fill="url(#wp1)" />
+        <rect x={-halfW} y={-halfH} width={halfW * 2} height={halfH * 2} fill="url(#wp2)" />
+      </g>
 
       {/* Hex tiles */}
       {board.tiles.map((tile) => {

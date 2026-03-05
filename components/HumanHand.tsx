@@ -51,7 +51,7 @@ export default function HumanHand({ player, canDraw, canPlayKnight, currentTurnN
   );
 
   return (
-    <div className="flex gap-3 shrink-0 justify-center pb-3">
+    <div className="flex gap-3 shrink-0 justify-center">
 
       {/* Resources */}
       <fieldset className="border border-slate-500 rounded px-3 pb-2">
