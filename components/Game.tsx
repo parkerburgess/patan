@@ -481,25 +481,24 @@ export default function Game() {
 
 
 
-      {/* Main row */}
-      <div className="flex gap-5 flex-1 min-h-0">
+      {/* Main column */}
+      <div className="flex flex-col flex-1 min-h-0 min-w-0">
 
-        {/* Left panel */}
-        <LeftPanel
-          orderedPlayers={orderedPlayers}
-          currentPlayer={currentPlayer}
-          gamePhase={gamePhase}
-          robberState={robberState}
-          statusText={statusText}
-          logEntries={logEntries}
-          rollHistory={rollHistory}
-        />
+        {/* Board row — LeftPanel flush against board left edge */}
+        <div className="flex flex-1 min-h-0 min-w-0">
 
-        {/* Center column — board + bottom bar */}
-        <div className="flex flex-col flex-1 min-w-0 min-h-0">
+          <LeftPanel
+            orderedPlayers={orderedPlayers}
+            currentPlayer={currentPlayer}
+            gamePhase={gamePhase}
+            robberState={robberState}
+            statusText={statusText}
+            logEntries={logEntries}
+            rollHistory={rollHistory}
+          />
 
           {/* Board */}
-          <div className="flex items-center justify-center flex-1 min-h-0 overflow-hidden">
+          <div className="flex items-center justify-start flex-1 min-h-0 min-w-0 overflow-hidden">
             <div className="w-full h-full drop-shadow-2xl">
               <Board
                 board={board}
@@ -517,34 +516,34 @@ export default function Game() {
             </div>
           </div>
 
-          {/* Bottom bar — centered under board */}
-          <div className="flex justify-center gap-4 shrink-0 items-stretch pb-3">
-            <HumanHand
-              player={humanPlayer}
-              canDraw={
-                isHumanActionPhase &&
-                devDeck.length > 0 &&
-                humanPlayer.resources.sheep >= 1 &&
-                humanPlayer.resources.wheat >= 1 &&
-                humanPlayer.resources.stone >= 1
-              }
-              canPlayKnight={gamePhase === "playing" && currentPlayer.isHuman && robberState === null && roadBuildingRemaining === 0}
-              currentTurnNumber={turnNumber}
-              onDraw={handleDrawDevCard}
-              onUseDevCard={handleUseDevCard}
-            />
-            <HumanActions
-              dice={dice}
-              canRoll={gamePhase === "playing" && turnPhase === "pre-roll" && currentPlayer.isHuman && robberState === null}
-              canTrade={isHumanActionPhase}
-              canEndTurn={isHumanActionPhase}
-              onRoll={handleRollDice}
-              onBankTrade={() => setBankTradeOpen(true)}
-              onPlayerTrade={() => {}}
-              onEndTurn={handleEndTurn}
-            />
-          </div>
+        </div>
 
+        {/* Bottom bar — left-aligned with LeftPanel */}
+        <div className="flex justify-start gap-4 shrink-0 items-stretch pb-3">
+          <HumanHand
+            player={humanPlayer}
+            canDraw={
+              isHumanActionPhase &&
+              devDeck.length > 0 &&
+              humanPlayer.resources.sheep >= 1 &&
+              humanPlayer.resources.wheat >= 1 &&
+              humanPlayer.resources.stone >= 1
+            }
+            canPlayKnight={gamePhase === "playing" && currentPlayer.isHuman && robberState === null && roadBuildingRemaining === 0}
+            currentTurnNumber={turnNumber}
+            onDraw={handleDrawDevCard}
+            onUseDevCard={handleUseDevCard}
+          />
+          <HumanActions
+            dice={dice}
+            canRoll={gamePhase === "playing" && turnPhase === "pre-roll" && currentPlayer.isHuman && robberState === null}
+            canTrade={isHumanActionPhase}
+            canEndTurn={isHumanActionPhase}
+            onRoll={handleRollDice}
+            onBankTrade={() => setBankTradeOpen(true)}
+            onPlayerTrade={() => {}}
+            onEndTurn={handleEndTurn}
+          />
         </div>
 
       </div>

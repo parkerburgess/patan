@@ -9,20 +9,29 @@ interface Props {
   playerColor: string | null;
 }
 
-const ROAD_WIDTH  = 12;   // outer road width
+const ROAD_WIDTH = 7;
 
 export default function Road({ x1, y1, x2, y2, playerColor }: Props) {
-  const roadColor   = playerColor ?? "#978e80";
-
-  return (
-    <g>
-      {/* Outer road */}
+  if (playerColor) {
+    return (
       <line
         x1={x1} y1={y1} x2={x2} y2={y2}
-        stroke={roadColor}
+        stroke={playerColor}
         strokeWidth={ROAD_WIDTH}
         strokeLinecap="round"
+        style={{ filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.6))" }}
       />
-    </g>
+    );
+  }
+
+  return (
+    <line
+      x1={x1} y1={y1} x2={x2} y2={y2}
+      stroke="#5C3D1E"
+      strokeWidth={4}
+      strokeLinecap="round"
+      strokeDasharray="6 8"
+      strokeOpacity={0.25}
+    />
   );
 }

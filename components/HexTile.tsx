@@ -21,12 +21,12 @@ interface Props {
 }
 
 const RESOURCE_COLORS: Record<ResourceType, string> = {
-  wood:   "#3A7D3A",
-  brick:  "#C1440E",
-  sheep:  "#7EC850",
-  wheat:  "#F4B942",
-  stone:  "#6B7280",
-  desert: "#E8D5A3",
+  wood:   "#4A6B3A",
+  brick:  "#A8432E",
+  sheep:  "#7AB84A",
+  wheat:  "#D4A535",
+  stone:  "#7A7060",
+  desert: "#D4C090",
 };
 
 const RESOURCE_LABELS: Record<ResourceType, string> = {
@@ -120,7 +120,7 @@ export default function HexTile({ tile, size, cx, cy, isRobberTarget = false, on
         )}
         <radialGradient id={depthGradId} cx={cx} cy={cy} r={size} gradientUnits="userSpaceOnUse">
           <stop offset="30%" stopColor="transparent" stopOpacity="0" />
-          <stop offset="100%" stopColor="#000000" stopOpacity="0.45" />
+          <stop offset="100%" stopColor="#2C1A0A" stopOpacity="0.45" />
         </radialGradient>
       </defs>
 
@@ -130,7 +130,7 @@ export default function HexTile({ tile, size, cx, cy, isRobberTarget = false, on
       <polygon
         points={points}
         fill={fill}
-        stroke="#C9A84C"
+        stroke="#5C3D1E"
         strokeWidth={3}
       />
 
