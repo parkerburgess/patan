@@ -495,54 +495,58 @@ export default function Game() {
           rollHistory={rollHistory}
         />
 
-        {/* Center — board */}
-        <div className="flex items-center justify-center flex-1 min-w-0 min-h-0 overflow-hidden">
-          <div className="w-full h-full drop-shadow-2xl">
-            <Board
-              board={board}
-              players={players}
-              activePlayerId={currentPlayer.id}
-              isSetup={gamePhase === "setup"}
-              activeModes={activeModes}
-              setupLastVillageId={setupLastVillageId}
-              onVillagePlace={handleVillagePlace}
-              onTownPlace={handleTownPlace}
-              onRoadPlace={handleRoadPlace}
-              robberMode={isRobberMode}
-              onRobberPlace={handleRobberPlace}
+        {/* Center column — board + bottom bar */}
+        <div className="flex flex-col flex-1 min-w-0 min-h-0">
+
+          {/* Board */}
+          <div className="flex items-center justify-center flex-1 min-h-0 overflow-hidden">
+            <div className="w-full h-full drop-shadow-2xl">
+              <Board
+                board={board}
+                players={players}
+                activePlayerId={currentPlayer.id}
+                isSetup={gamePhase === "setup"}
+                activeModes={activeModes}
+                setupLastVillageId={setupLastVillageId}
+                onVillagePlace={handleVillagePlace}
+                onTownPlace={handleTownPlace}
+                onRoadPlace={handleRoadPlace}
+                robberMode={isRobberMode}
+                onRobberPlace={handleRobberPlace}
+              />
+            </div>
+          </div>
+
+          {/* Bottom bar — centered under board */}
+          <div className="flex justify-center gap-4 shrink-0 items-stretch pb-3">
+            <HumanHand
+              player={humanPlayer}
+              canDraw={
+                isHumanActionPhase &&
+                devDeck.length > 0 &&
+                humanPlayer.resources.sheep >= 1 &&
+                humanPlayer.resources.wheat >= 1 &&
+                humanPlayer.resources.stone >= 1
+              }
+              canPlayKnight={gamePhase === "playing" && currentPlayer.isHuman && robberState === null && roadBuildingRemaining === 0}
+              currentTurnNumber={turnNumber}
+              onDraw={handleDrawDevCard}
+              onUseDevCard={handleUseDevCard}
+            />
+            <HumanActions
+              dice={dice}
+              canRoll={gamePhase === "playing" && turnPhase === "pre-roll" && currentPlayer.isHuman && robberState === null}
+              canTrade={isHumanActionPhase}
+              canEndTurn={isHumanActionPhase}
+              onRoll={handleRollDice}
+              onBankTrade={() => setBankTradeOpen(true)}
+              onPlayerTrade={() => {}}
+              onEndTurn={handleEndTurn}
             />
           </div>
 
         </div>
 
-      </div>
-
-      {/* Bottom bar — human hand + actions */}
-      <div className="flex justify-center gap-4 shrink-0 items-stretch pb-3">
-        <HumanHand
-          player={humanPlayer}
-          canDraw={
-            isHumanActionPhase &&
-            devDeck.length > 0 &&
-            humanPlayer.resources.sheep >= 1 &&
-            humanPlayer.resources.wheat >= 1 &&
-            humanPlayer.resources.stone >= 1
-          }
-          canPlayKnight={gamePhase === "playing" && currentPlayer.isHuman && robberState === null && roadBuildingRemaining === 0}
-          currentTurnNumber={turnNumber}
-          onDraw={handleDrawDevCard}
-          onUseDevCard={handleUseDevCard}
-        />
-        <HumanActions
-          dice={dice}
-          canRoll={gamePhase === "playing" && turnPhase === "pre-roll" && currentPlayer.isHuman && robberState === null}
-          canTrade={isHumanActionPhase}
-          canEndTurn={isHumanActionPhase}
-          onRoll={handleRollDice}
-          onBankTrade={() => setBankTradeOpen(true)}
-          onPlayerTrade={() => {}}
-          onEndTurn={handleEndTurn}
-        />
       </div>
 
     </main>
