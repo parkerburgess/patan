@@ -19,6 +19,7 @@ interface UseNpcAutoPlayOptions {
   setDiscardAmount: Dispatch<SetStateAction<number>>;
   setPendingNpcRobber: Dispatch<SetStateAction<{ tileId: number } | null>>;
   setTurnNumber: Dispatch<SetStateAction<number>>;
+  setRollHistory: Dispatch<SetStateAction<number[]>>;
   addLog: (message: string, playerColor: string) => void;
 }
 
@@ -36,6 +37,7 @@ export function useNpcAutoPlay({
   setDiscardAmount,
   setPendingNpcRobber,
   setTurnNumber,
+  setRollHistory,
   addLog,
 }: UseNpcAutoPlayOptions) {
   const boardRef = useRef(board);
@@ -54,6 +56,7 @@ export function useNpcAutoPlay({
 
       const result = rollDice();
       setDice(result);
+      setRollHistory(prev => [...prev, result.total]);
       addLog(`${npcPlayer.name} rolled ${result.total}`, npcPlayer.color);
 
       if (result.total !== 7) {

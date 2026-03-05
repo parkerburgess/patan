@@ -16,37 +16,72 @@ export default function PlayerCard({ player, isActive }: Props) {
 
   return (
     <div
-      className="grid gap-1.5 rounded-lg pt-2.5 px-2.5 pb-1 border-4 transition-all duration-200"
-      style={{ borderColor: player.color, backgroundColor: isActive ? ACTIVE_BG : IDLE_BG, color: isActive ? ACTIVE_TEXT : "white" }}
+      className={`rounded-xl overflow-hidden border-2 transition-all duration-200 ${isActive ? "" : "opacity-75"}`}
+      style={{
+        borderColor: isActive ? player.color : "transparent",
+        boxShadow: isActive ? `0 0 14px ${player.color}55` : undefined,
+      }}
     >
-      {/* Row 1: name | VP | Road | Army */}
-      <div className="grid grid-cols-[1fr_auto_auto_auto] items-baseline gap-2 text-xs">
-        <span className="font-bold truncate">{player.name}</span>
-        <span className="text-xl font-bold" style={{ color: accent }}>
+      {/* Header: color swatch + name + active badge */}
+      <div className="flex items-center gap-2 px-3 py-1" style={{ backgroundColor: `${player.color}28` }}>
+        <div
+          className="w-3 h-3 rounded-full shrink-0 ring-2 ring-white/20"
+          style={{ backgroundColor: player.color }}
+        />
+        <span className="font-bold text-white text-sm flex-1 truncate">{player.name}</span>
+        {isActive && (
+          <span className="text-[9px] uppercase tracking-widest bg-white/20 text-white px-1.5 py-0.5 rounded shrink-0">
+            Active
+          </span>
+        )}
+      </div>
+
+      {/* Victory Points */}
+      <div className="bg-slate-800 flex items-center justify-between px-3 py-1">
+        <span className="text-slate-400 text-[10px] uppercase tracking-widest">Victory Points</span>
+        <span className="text-xl font-bold leading-none" style={{ color: player.color }}>
           {player.victoryPoints}
         </span>
-        <div>
-          <span className="opacity-60">R </span>
-          <span className={player.hasLongestRoad ? "font-bold" : ""} style={player.hasLongestRoad ? { color: accent } : undefined}>
-            {player.roadLength}
-          </span>
+      </div>
+
+      {/* Road length + Army count */}
+      <div className="bg-slate-800/70 border-t border-slate-700 flex divide-x divide-slate-700">
+        <div className="flex-1 flex items-center justify-between px-3 py-1 gap-1.5">
+          <span className="text-slate-400 text-[10px] uppercase tracking-widest">Road</span>
+          <div className="flex items-center gap-1">
+            <span className="text-white font-bold text-sm">{player.roadLength}</span>
+            {player.hasLongestRoad && (
+              <span className="text-xs leading-none" style={{ color: player.color }}>★</span>
+            )}
+          </div>
         </div>
-        <div>
-          <span className="opacity-60">A </span>
-          <span className={player.hasLargestArmy ? "font-bold" : ""} style={player.hasLargestArmy ? { color: accent } : undefined}>
-            {player.armyCount}
-          </span>
+        <div className="flex-1 flex items-center justify-between px-3 py-1 gap-1.5">
+          <span className="text-slate-400 text-[10px] uppercase tracking-widest">Army</span>
+          <div className="flex items-center gap-1">
+            <span className="text-white font-bold text-sm">{player.armyCount}</span>
+            {player.hasLargestArmy && (
+              <span className="text-xs leading-none" style={{ color: player.color }}>★</span>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Row 2: Roads | Villages | Towns */}
-      <div className={`grid grid-cols-4 border-t pt-1 text-[11px] opacity-80 ${isActive ? "border-[#7B4F2E]/30" : "border-white/30"}`}>
-        <span></span>
-        <span>Rd:<span className="opacity-100">{player.roadsAvailable}</span></span>
-        <span>Vil:<span className="opacity-100">{player.villagesAvailable}</span></span>
-        <span>Twn:<span className="opacity-100">{player.townsAvailable}</span></span>
+      {/* Pieces remaining */}
+      <div className="bg-slate-900 border-t border-slate-700 flex divide-x divide-slate-700">
+        <div className="flex items-center px-2 py-1">
+          <span className="text-slate-500 text-[9px] uppercase tracking-widest">Avail</span>
+        </div>
+        {[
+          { label: "Rd",  value: player.roadsAvailable },
+          { label: "Vil", value: player.villagesAvailable },
+          { label: "Twn", value: player.townsAvailable },
+        ].map(({ label, value }) => (
+          <div key={label} className="flex-1 flex items-center justify-center gap-1 py-1">
+            <span className="text-slate-400 text-[9px] uppercase tracking-widest">{label}</span>
+            <span className="text-white text-[9px] leading-none">{value}</span>
+          </div>
+        ))}
       </div>
-
     </div>
   );
 }

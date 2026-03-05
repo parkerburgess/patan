@@ -17,8 +17,8 @@ import { updateRoadLengths, updateLargestArmy } from "@/lib/roads";
 import { useNpcSetupTurns } from "@/hooks/useNpcSetupTurns";
 import { useNpcAutoPlay } from "@/hooks/useNpcAutoPlay";
 import Board from "@/components/Board";
-import PlayerCard from "@/components/PlayerCard";
 import GameLog, { type LogEntry } from "@/components/GameLog";
+import LeftPanel from "@/components/LeftPanel";
 import DiscardModal from "@/components/DiscardModal";
 import BankTradeModal, { getExchangeRates } from "@/components/BankTradeModal";
 import YearOfPlentyModal from "@/components/YearOfPlentyModal";
@@ -45,7 +45,6 @@ export default function Game() {
   const [activePlayerIdx, setActivePlayerIdx] = useState(board.startingPlayerIdx);
   const [turnPhase, setTurnPhase] = useState<TurnPhase>("pre-roll");
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
-  const [logOpen, setLogOpen] = useState(true);
   const nextLogId = useRef(0);
   const phaseBeforeRobber = useRef<"pre-roll" | "actions">("actions");
 
@@ -65,6 +64,7 @@ export default function Game() {
   const [yearOfPlentyOpen, setYearOfPlentyOpen] = useState(false);
   const [monopolyOpen, setMonopolyOpen] = useState(false);
   const [turnNumber, setTurnNumber] = useState(1);
+  const [rollHistory, setRollHistory] = useState<number[]>([]);
 
   function addLog(message: string, playerColor: string) {
     const id = nextLogId.current++;
@@ -82,7 +82,7 @@ export default function Game() {
     gamePhase, activePlayerIdx, board, players,
     setDice, setPlayers, setBoard, setActivePlayerIdx, setTurnPhase,
     setRobberState, setDiscardAmount, setPendingNpcRobber,
-    setTurnNumber, addLog,
+    setTurnNumber, setRollHistory, addLog,
   });
 
   // ── Derived state ─────────────────────────────────────────────────────────────
@@ -200,6 +200,7 @@ export default function Game() {
     addLog(`${currentPlayer.name}'s turn`, currentPlayer.color);
     const result = rollDice();
     setDice(result);
+    setRollHistory(prev => [...prev, result.total]);
     addLog(`${currentPlayer.name} rolled ${result.total}`, currentPlayer.color);
 
     if (result.total === 7) {
@@ -483,59 +484,16 @@ export default function Game() {
       {/* Main row */}
       <div className="flex gap-5 flex-1 min-h-0">
 
-        {/* Left panel — player cards */}
-        <aside className="flex flex-col gap-2 w-56 shrink-0 overflow-hidden">
-
-          {/* Status banner */}
-          {(gamePhase === "setup" || gamePhase === "playing") && (
-            <div className={`mb-3 px-5 py-2 rounded-lg text-sm text-white font-medium shadow shrink-0 self-center ${
-              robberState === "place-robber" ? "bg-yellow-700" : "bg-slate-700"
-            }`}>
-              {gamePhase === "setup" ? (
-                <>
-                  <span className="text-slate-400 mr-1">Setup —</span>
-                  <span style={{ color: currentPlayer.color }} className="font-bold mr-1">
-                    {currentPlayer.name}:
-                  </span>
-                  {statusText}
-                </>
-              ) : (
-                <>
-                  <span style={{ color: currentPlayer.color }} className="font-bold mr-1">
-                    {currentPlayer.name}
-                  </span>
-                  <span className="text-slate-300">{statusText}</span>
-                </>
-              )}
-            </div>
-          )}
-
-          {orderedPlayers.map((player) => (
-            <PlayerCard
-              key={player.id}
-              player={player}
-              isActive={player.id === currentPlayer.id}
-            />
-          ))}
-
-          {/* Game log */}
-          <div className="flex flex-col flex-1 min-h-0">
-            <button
-              onClick={() => setLogOpen(prev => !prev)}
-              className="flex items-center justify-between w-full px-2 py-1 text-[10px]
-                         uppercase tracking-widest text-slate-400 hover:text-slate-200 transition-colors"
-            >
-              <span>Log</span>
-              <span>{logOpen ? "▲" : "▼"}</span>
-            </button>
-            {logOpen && (
-              <div className="flex-1 min-h-0">
-                <GameLog entries={logEntries} />
-              </div>
-            )}
-          </div>
-
-        </aside>
+        {/* Left panel */}
+        <LeftPanel
+          orderedPlayers={orderedPlayers}
+          currentPlayer={currentPlayer}
+          gamePhase={gamePhase}
+          robberState={robberState}
+          statusText={statusText}
+          logEntries={logEntries}
+          rollHistory={rollHistory}
+        />
 
         {/* Center — board */}
         <div className="flex items-center justify-center flex-1 min-w-0 min-h-0 overflow-hidden">
