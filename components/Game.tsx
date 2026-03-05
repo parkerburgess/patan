@@ -151,6 +151,9 @@ export default function Game() {
       if (isSetup && setupTurnIndex >= 4) {
         return { ...base, resources: addResources(p.resources, collectSetupResources(board, locationId)) };
       }
+      if (!isSetup) {
+        return { ...base, resources: subtractResources(p.resources, { wood: 1, brick: 1, sheep: 1, wheat: 1, stone: 0 }) };
+      }
       return base;
     }));
 
@@ -169,11 +172,14 @@ export default function Game() {
 
     addLog(`${currentPlayer.name} placed a road`, currentPlayer.color);
     setBoard(placeRoad(board, roadId, currentPlayer.id));
-    setPlayers(prev => prev.map((p, idx) =>
-      idx === currentPlayerIdx
-        ? { ...p, roadsAvailable: p.roadsAvailable - 1 }
-        : p
-    ));
+    setPlayers(prev => prev.map((p, idx) => {
+      if (idx !== currentPlayerIdx) return p;
+      const base = { ...p, roadsAvailable: p.roadsAvailable - 1 };
+      if (!isSetup) {
+        return { ...base, resources: subtractResources(p.resources, { wood: 1, brick: 1, sheep: 0, wheat: 0, stone: 0 }) };
+      }
+      return base;
+    }));
     setSetupLastVillageId(null);
 
     if (isSetup) {
@@ -203,11 +209,16 @@ export default function Game() {
     if (!canPlaceTown(board, locationId, currentPlayer.id, currentPlayer.resources)) return;
     addLog(`${currentPlayer.name} placed a town`, currentPlayer.color);
     setBoard(placeTown(board, locationId, currentPlayer.id));
-    setPlayers(prev => prev.map((p, idx) =>
-      idx === currentPlayerIdx
-        ? { ...p, victoryPoints: p.victoryPoints + 1, townsAvailable: p.townsAvailable - 1, villagesAvailable: p.villagesAvailable + 1 }
-        : p
-    ));
+    setPlayers(prev => prev.map((p, idx) => {
+      if (idx !== currentPlayerIdx) return p;
+      return {
+        ...p,
+        victoryPoints: p.victoryPoints + 1,
+        townsAvailable: p.townsAvailable - 1,
+        villagesAvailable: p.villagesAvailable + 1,
+        resources: subtractResources(p.resources, { wood: 0, brick: 0, sheep: 0, wheat: 2, stone: 3 }),
+      };
+    }));
     setPlacementMode(null);
   }
 
