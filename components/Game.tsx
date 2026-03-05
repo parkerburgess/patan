@@ -484,11 +484,11 @@ export default function Game() {
       <div className="flex gap-5 flex-1 min-h-0">
 
         {/* Left panel — player cards */}
-        <aside className="flex flex-col gap-2 w-56 shrink-0 overflow-hidden">
+        <aside className="flex flex-col gap-2 w-56 shrink-0 overflow-y-auto">
 
           {/* Status banner */}
           {(gamePhase === "setup" || gamePhase === "playing") && (
-            <div className={`mb-3 px-5 py-2 rounded-lg text-sm text-white font-medium shadow shrink-0 self-center ${
+            <div className={`mb-3 px-3 py-2 rounded-lg text-sm text-white font-medium shadow shrink-0 text-center ${
               robberState === "place-robber" ? "bg-yellow-700" : "bg-slate-700"
             }`}>
               {gamePhase === "setup" ? (
@@ -517,23 +517,6 @@ export default function Game() {
               isActive={player.id === currentPlayer.id}
             />
           ))}
-
-          {/* Game log */}
-          <div className="flex flex-col flex-1 min-h-0">
-            <button
-              onClick={() => setLogOpen(prev => !prev)}
-              className="flex items-center justify-between w-full px-2 py-1 text-[10px]
-                         uppercase tracking-widest text-slate-400 hover:text-slate-200 transition-colors"
-            >
-              <span>Log</span>
-              <span>{logOpen ? "▲" : "▼"}</span>
-            </button>
-            {logOpen && (
-              <div className="flex-1 min-h-0">
-                <GameLog entries={logEntries} />
-              </div>
-            )}
-          </div>
 
         </aside>
 
