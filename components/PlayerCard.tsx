@@ -45,14 +45,6 @@ export default function PlayerCard({ player, isActive }: Props) {
         <span>Twn:<span className="opacity-100">{player.townsAvailable}</span></span>
       </div>
 
-      {/* Resources */}
-      <div className="grid grid-cols-5 border-t border-white/30 pt-1 text-[9px] opacity-60">
-        {(["wood","brick","sheep","wheat","stone"] as const).map(r => (
-          <span key={r}>
-            {r.slice(0, 2)}<span className="opacity-100">{player.resources[r]}</span>
-          </span>
-        ))}
-      </div>
     </div>
   );
 }

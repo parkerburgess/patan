@@ -22,10 +22,11 @@ import DiceDisplay from "@/components/DiceDisplay";
 import GameLog, { type LogEntry } from "@/components/GameLog";
 import DiscardModal from "@/components/DiscardModal";
 import BankTradeModal, { getExchangeRates } from "@/components/BankTradeModal";
+import HumanHand from "@/components/HumanHand";
 import type { BoardState, Player, DevCard, PlayableResource, TurnPhase } from "@/types/game";
 import {
   EMPTY_RESOURCES, ROAD_COST, VILLAGE_COST, TOWN_COST, DEV_CARD_COST,
-  LEGEND, INITIAL_PLAYERS,
+  INITIAL_PLAYERS,
 } from "@/lib/gameConfig";
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -372,29 +373,7 @@ export default function Game() {
         />
       )}
 
-      {/* Status banner */}
-      {(gamePhase === "setup" || gamePhase === "playing") && (
-        <div className={`mb-3 px-5 py-2 rounded-lg text-sm text-white font-medium shadow shrink-0 self-center ${
-          robberState === "place-robber" ? "bg-yellow-700" : "bg-slate-700"
-        }`}>
-          {gamePhase === "setup" ? (
-            <>
-              <span className="text-slate-400 mr-1">Setup —</span>
-              <span style={{ color: currentPlayer.color }} className="font-bold mr-1">
-                {currentPlayer.name}:
-              </span>
-              {statusText}
-            </>
-          ) : (
-            <>
-              <span style={{ color: currentPlayer.color }} className="font-bold mr-1">
-                {currentPlayer.name}
-              </span>
-              <span className="text-slate-300">{statusText}</span>
-            </>
-          )}
-        </div>
-      )}
+      
 
       {/* Main row */}
       <div className="flex gap-5 flex-1 min-h-0 justify-center">
@@ -428,22 +407,34 @@ export default function Game() {
             />
           </div>
 
-          {/* Legend */}
-          <div className="mt-4 flex flex-wrap gap-3 justify-center">
-            {LEGEND.map(({ color, label }) => (
-              <span key={label} className="flex items-center gap-1.5 text-slate-300 text-xs">
-                <span
-                  className="inline-block w-3 h-3 rounded-sm border border-slate-600"
-                  style={{ backgroundColor: color }}
-                />
-                {label}
-              </span>
-            ))}
-          </div>
         </div>
 
         {/* Right panel */}
         <aside className="flex flex-col gap-2 w-44 shrink-0">
+          
+          {/* Status banner */}
+            {(gamePhase === "setup" || gamePhase === "playing") && (
+              <div className={`mb-3 px-5 py-2 rounded-lg text-sm text-white font-medium shadow shrink-0 self-center ${
+                robberState === "place-robber" ? "bg-yellow-700" : "bg-slate-700"
+              }`}>
+                {gamePhase === "setup" ? (
+                  <>
+                    <span className="text-slate-400 mr-1">Setup —</span>
+                    <span style={{ color: currentPlayer.color }} className="font-bold mr-1">
+                      {currentPlayer.name}:
+                    </span>
+                    {statusText}
+                  </>
+                ) : (
+                  <>
+                    <span style={{ color: currentPlayer.color }} className="font-bold mr-1">
+                      {currentPlayer.name}
+                    </span>
+                    <span className="text-slate-300">{statusText}</span>
+                  </>
+                )}
+              </div>
+            )}
 
           {/* Dice + Roll */}
           <div className="flex items-center gap-2 bg-slate-800 rounded-lg px-2.5 py-2 shadow">
@@ -581,6 +572,10 @@ export default function Game() {
         </aside>
 
       </div>
+
+      {/* Human hand — resources + dev cards */}
+      <HumanHand player={humanPlayer} />
+
     </main>
   );
 }
