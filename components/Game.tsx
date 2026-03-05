@@ -47,6 +47,7 @@ export default function Game() {
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [logOpen, setLogOpen] = useState(true);
   const nextLogId = useRef(0);
+  const phaseBeforeRobber = useRef<"pre-roll" | "actions">("actions");
 
   // ── Robber state ─────────────────────────────────────────────────────────────
 
@@ -279,7 +280,8 @@ export default function Game() {
     setPlayers(afterSteal);
 
     setRobberState(null);
-    setTurnPhase("actions");
+    setTurnPhase(phaseBeforeRobber.current);
+    phaseBeforeRobber.current = "actions";
   }
 
   function handleEndTurn() {
@@ -342,6 +344,7 @@ export default function Game() {
         });
         return updateLargestArmy(updated);
       });
+      phaseBeforeRobber.current = turnPhase;
       setRobberState("place-robber");
       addLog(`${currentPlayer.name} played a Knight`, currentPlayer.color);
     }
@@ -505,6 +508,41 @@ export default function Game() {
 
         {/* Left panel — player cards */}
         <aside className="flex flex-col gap-2 w-40 shrink-0 overflow-hidden">
+
+          {/* Status banner */}
+          {(gamePhase === "setup" || gamePhase === "playing") && (
+            <div className={`mb-3 px-5 py-2 rounded-lg text-sm text-white font-medium shadow shrink-0 self-center ${
+              robberState === "place-robber" ? "bg-yellow-700" : "bg-slate-700"
+            }`}>
+              {gamePhase === "setup" ? (
+                <>
+                  <span className="text-slate-400 mr-1">Setup —</span>
+                  <span style={{ color: currentPlayer.color }} className="font-bold mr-1">
+                    {currentPlayer.name}:
+                  </span>
+                  {statusText}
+                </>
+              ) : (
+                <>
+                  <span style={{ color: currentPlayer.color }} className="font-bold mr-1">
+                    {currentPlayer.name}
+                  </span>
+                  <span className="text-slate-300">{statusText}</span>
+                </>
+              )}
+            </div>
+          )}
+          
+          {/* Regen Board */}
+          <button
+            onClick={handleRegenerateBoard}
+            className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 active:bg-amber-600
+                       text-slate-900 font-bold rounded-lg transition-colors
+                       shadow-lg text-xs uppercase tracking-widest"
+          >
+            Regen Board
+          </button>
+
           {orderedPlayers.map((player) => (
             <PlayerCard
               key={player.id}
@@ -512,6 +550,24 @@ export default function Game() {
               isActive={player.id === currentPlayer.id}
             />
           ))}
+
+          {/* Game log */}
+          <div className="flex flex-col flex-1 min-h-0">
+            <button
+              onClick={() => setLogOpen(prev => !prev)}
+              className="flex items-center justify-between w-full px-2 py-1 text-[10px]
+                         uppercase tracking-widest text-slate-400 hover:text-slate-200 transition-colors"
+            >
+              <span>Log</span>
+              <span>{logOpen ? "▲" : "▼"}</span>
+            </button>
+            {logOpen && (
+              <div className="flex-1 min-h-0">
+                <GameLog entries={logEntries} />
+              </div>
+            )}
+          </div>
+
         </aside>
 
         {/* Center — board + legend */}
@@ -533,74 +589,6 @@ export default function Game() {
           </div>
 
         </div>
-
-        {/* Right panel */}
-        <aside className="flex flex-col gap-2 w-44 shrink-0">
-          
-          {/* Status banner */}
-            {(gamePhase === "setup" || gamePhase === "playing") && (
-              <div className={`mb-3 px-5 py-2 rounded-lg text-sm text-white font-medium shadow shrink-0 self-center ${
-                robberState === "place-robber" ? "bg-yellow-700" : "bg-slate-700"
-              }`}>
-                {gamePhase === "setup" ? (
-                  <>
-                    <span className="text-slate-400 mr-1">Setup —</span>
-                    <span style={{ color: currentPlayer.color }} className="font-bold mr-1">
-                      {currentPlayer.name}:
-                    </span>
-                    {statusText}
-                  </>
-                ) : (
-                  <>
-                    <span style={{ color: currentPlayer.color }} className="font-bold mr-1">
-                      {currentPlayer.name}
-                    </span>
-                    <span className="text-slate-300">{statusText}</span>
-                  </>
-                )}
-              </div>
-            )}
-
-          {/* Game log */}
-          <div className="flex flex-col flex-1 min-h-0">
-            <button
-              onClick={() => setLogOpen(prev => !prev)}
-              className="flex items-center justify-between w-full px-2 py-1 text-[10px]
-                         uppercase tracking-widest text-slate-400 hover:text-slate-200 transition-colors"
-            >
-              <span>Log</span>
-              <span>{logOpen ? "▲" : "▼"}</span>
-            </button>
-            {logOpen && (
-              <div className="flex-1 min-h-0">
-                <GameLog entries={logEntries} />
-              </div>
-            )}
-          </div>
-
-          {/* End Turn */}
-          {isHumanActionPhase && (
-            <button
-              onClick={handleEndTurn}
-              className="px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest
-                         transition-colors bg-green-700 hover:bg-green-600 active:bg-green-800
-                         text-white shadow-lg"
-            >
-              End Turn
-            </button>
-          )}
-
-          {/* Regen Board */}
-          <button
-            onClick={handleRegenerateBoard}
-            className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 active:bg-amber-600
-                       text-slate-900 font-bold rounded-lg transition-colors
-                       shadow-lg text-xs uppercase tracking-widest"
-          >
-            Regen Board
-          </button>
-
-        </aside>
 
       </div>
 
@@ -624,9 +612,11 @@ export default function Game() {
           dice={dice}
           canRoll={gamePhase === "playing" && turnPhase === "pre-roll" && currentPlayer.isHuman && robberState === null}
           canTrade={isHumanActionPhase}
+          canEndTurn={isHumanActionPhase}
           onRoll={handleRollDice}
           onBankTrade={() => setBankTradeOpen(true)}
           onPlayerTrade={() => {}}
+          onEndTurn={handleEndTurn}
         />
       </div>
 

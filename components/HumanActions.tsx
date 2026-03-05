@@ -7,12 +7,14 @@ interface Props {
   dice: DiceRoll | null;
   canRoll: boolean;
   canTrade: boolean;
+  canEndTurn: boolean;
   onRoll: () => void;
   onBankTrade: () => void;
   onPlayerTrade: () => void;
+  onEndTurn: () => void;
 }
 
-export default function HumanActions({ dice, canRoll, canTrade, onRoll, onBankTrade, onPlayerTrade }: Props) {
+export default function HumanActions({ dice, canRoll, canTrade, canEndTurn, onRoll, onBankTrade, onPlayerTrade, onEndTurn }: Props) {
   return (
     <div className="flex flex-col gap-2 shrink-0 justify-center pb-3">
 
@@ -34,32 +36,44 @@ export default function HumanActions({ dice, canRoll, canTrade, onRoll, onBankTr
         </div>
       </fieldset>
 
-      {/* Trades */}
-      <fieldset className="border border-slate-500 rounded px-3 pb-2">
-        <legend className="text-[10px] text-slate-400 px-1 uppercase tracking-widest">Trade</legend>
-        <div className="flex gap-2 pt-1">
-          <button
-            onClick={onBankTrade}
-            disabled={!canTrade}
-            className="flex-1 py-1.5 bg-red-700 hover:bg-red-600 active:bg-red-800
-                       text-white font-bold rounded transition-colors
-                       text-[10px] uppercase tracking-widest
-                       disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            Bank
-          </button>
-          <button
-            onClick={onPlayerTrade}
-            disabled={!canTrade}
-            className="flex-1 py-1.5 bg-red-700 hover:bg-red-600 active:bg-red-800
-                       text-white font-bold rounded transition-colors
-                       text-[10px] uppercase tracking-widest
-                       disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            Player
-          </button>
-        </div>
-      </fieldset>
+      {/* Trades + End Turn */}
+      <div className="flex gap-2 items-stretch">
+        <fieldset className="border border-slate-500 rounded px-3 pb-2 flex-1">
+          <legend className="text-[10px] text-slate-400 px-1 uppercase tracking-widest">Trade</legend>
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={onBankTrade}
+              disabled={!canTrade}
+              className="flex-1 py-1.5 bg-red-700 hover:bg-red-600 active:bg-red-800
+                         text-white font-bold rounded transition-colors
+                         text-[10px] uppercase tracking-widest
+                         disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Bank
+            </button>
+            <button
+              onClick={onPlayerTrade}
+              disabled={!canTrade}
+              className="flex-1 py-1.5 bg-red-700 hover:bg-red-600 active:bg-red-800
+                         text-white font-bold rounded transition-colors
+                         text-[10px] uppercase tracking-widest
+                         disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Player
+            </button>
+          </div>
+        </fieldset>
+
+        <button
+          onClick={onEndTurn}
+          disabled={!canEndTurn}
+          className="px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-widest self-end
+                     transition-colors bg-green-700 hover:bg-green-600 active:bg-green-800
+                     text-white disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          End
+        </button>
+      </div>
 
     </div>
   );
