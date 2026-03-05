@@ -22,6 +22,7 @@ import PlayerCard from "@/components/PlayerCard";
 import DiceDisplay from "@/components/DiceDisplay";
 import GameLog, { type LogEntry } from "@/components/GameLog";
 import DiscardModal from "@/components/DiscardModal";
+import BankTradeModal, { getExchangeRates } from "@/components/BankTradeModal";
 import type { BoardState, Player, DevCard, PlayableResource, TurnPhase } from "@/types/game";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -95,6 +96,8 @@ export default function Game() {
    * but we're waiting for the human player to discard first.
    */
   const [pendingNpcRobber, setPendingNpcRobber] = useState<{ tileId: number } | null>(null);
+
+  const [bankTradeOpen, setBankTradeOpen] = useState(false);
 
   function addLog(message: string, playerColor: string) {
     const id = nextLogId.current++;
@@ -315,8 +318,22 @@ export default function Game() {
     ));
   }
 
-  function handleInitiateTrade() {
-    // TODO: open trade UI
+  function handleBankTrade(give: PlayableResource, receive: PlayableResource) {
+    const rates = getExchangeRates(board, currentPlayer);
+    const cost = rates[give];
+    setPlayers(prev => prev.map((p, idx) => {
+      if (idx !== currentPlayerIdx) return p;
+      return {
+        ...p,
+        resources: {
+          ...p.resources,
+          [give]: p.resources[give] - cost,
+          [receive]: p.resources[receive] + 1,
+        },
+      };
+    }));
+    addLog(`${currentPlayer.name} traded ${cost}× ${give} for 1× ${receive}`, currentPlayer.color);
+    setBankTradeOpen(false);
   }
 
   function handlePlayKnight() {
@@ -350,6 +367,7 @@ export default function Game() {
     setRobberState(null);
     setDiscardAmount(0);
     setPendingNpcRobber(null);
+    setBankTradeOpen(false);
   }
 
   // ── Derived UI values ────────────────────────────────────────────────────────
@@ -373,6 +391,16 @@ export default function Game() {
 
   return (
     <main className="h-screen bg-slate-900 px-6 py-4 flex flex-col overflow-hidden">
+
+      {/* Bank trade modal */}
+      {bankTradeOpen && (
+        <BankTradeModal
+          player={humanPlayer}
+          board={board}
+          onConfirm={handleBankTrade}
+          onClose={() => setBankTradeOpen(false)}
+        />
+      )}
 
       {/* Discard modal */}
       {robberState === "human-discard" && (
@@ -479,7 +507,8 @@ export default function Game() {
             <legend className="text-[10px] text-slate-400 px-1">Trades</legend>
             <div className="flex gap-2">
               <button
-                disabled={gamePhase === "playing" && (turnPhase === "actions" || !currentPlayer.isHuman)}
+                onClick={() => setBankTradeOpen(true)}
+                disabled={!(gamePhase === "playing" && turnPhase === "actions" && currentPlayer.isHuman && robberState === null)}
                 className="flex-1 py-1 bg-red-700 hover:bg-red-600 active:bg-red-800
                            text-white font-bold rounded transition-colors
                            text-[10px] uppercase tracking-widest
