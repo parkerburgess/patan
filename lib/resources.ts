@@ -167,12 +167,3 @@ export function applyMonopoly(
   return { players: withGain, totalStolen };
 }
 
-/** Pick the resource type that opponents hold the most of (used by NPC monopoly). */
-export function npcChooseMonopolyResource(players: Player[], npcPlayerId: number): PlayableResource {
-  const totals: Record<PlayableResource, number> = { wood: 0, brick: 0, sheep: 0, wheat: 0, stone: 0 };
-  for (const p of players) {
-    if (p.id === npcPlayerId) continue;
-    for (const res of PLAYABLE_RESOURCES) totals[res] += p.resources[res];
-  }
-  return PLAYABLE_RESOURCES.reduce((best, res) => totals[res] > totals[best] ? res : best, PLAYABLE_RESOURCES[0]);
-}
