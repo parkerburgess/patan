@@ -60,7 +60,8 @@ export default function PlayerCard({ player, isActive }: Props) {
         </div>
       </div>
 
-      {/* Pieces remaining */}
+      {/* DEBUG: NPC resources / commented-out avail row */}
+      {/* Pieces remaining
       <div className="bg-slate-900 border-t border-slate-700 flex divide-x divide-slate-700">
         <div className="flex items-center px-2 py-1">
           <span className="text-slate-500 text-[9px] uppercase tracking-widest">Avail</span>
@@ -76,6 +77,17 @@ export default function PlayerCard({ player, isActive }: Props) {
           </div>
         ))}
       </div>
+      */}
+      {!player.isHuman && (
+        <div className="bg-slate-900 border-t border-slate-700 flex divide-x divide-slate-700">
+          {(["wood","brick","sheep","wheat","stone"] as const).map(res => (
+            <div key={res} className="flex-1 flex items-center justify-center gap-0.5 py-1">
+              <span className="text-slate-500 text-[9px] uppercase">{res[0]}</span>
+              <span className="text-white text-[9px] leading-none">{player.resources[res]}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

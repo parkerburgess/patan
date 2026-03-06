@@ -23,6 +23,7 @@ import DiscardModal from "@/components/DiscardModal";
 import BankTradeModal, { getExchangeRates } from "@/components/BankTradeModal";
 import YearOfPlentyModal from "@/components/YearOfPlentyModal";
 import MonopolyModal from "@/components/MonopolyModal";
+import PlayerTradeModal from "@/components/PlayerTradeModal";
 import HumanHand from "@/components/HumanHand";
 import HumanActions from "@/components/HumanActions";
 import type { BoardState, Player, DevCard, PlayableResource, TurnPhase, DevCardType } from "@/types/game";
@@ -63,6 +64,7 @@ export default function Game() {
   const [roadBuildingRemaining, setRoadBuildingRemaining] = useState(0);
   const [yearOfPlentyOpen, setYearOfPlentyOpen] = useState(false);
   const [monopolyOpen, setMonopolyOpen] = useState(false);
+  const [playerTradeOpen, setPlayerTradeOpen] = useState(false);
   const [turnNumber, setTurnNumber] = useState(1);
   const [rollHistory, setRollHistory] = useState<number[]>([]);
 
@@ -80,7 +82,8 @@ export default function Game() {
 
   useNpcAutoPlay({
     gamePhase, activePlayerIdx, board, players,
-    setDice, setPlayers, setBoard, setActivePlayerIdx, setTurnPhase,
+    devDeck, turnNumber,
+    setDice, setPlayers, setBoard, setDevDeck, setActivePlayerIdx, setTurnPhase,
     setRobberState, setDiscardAmount, setPendingNpcRobber,
     setTurnNumber, setRollHistory, addLog,
   });
@@ -406,6 +409,33 @@ export default function Game() {
     setBankTradeOpen(false);
   }
 
+  function handlePlayerTradeConfirm(offer: PlayableResource, request: PlayableResource, acceptingPlayerId: number) {
+    setPlayers(prev => prev.map(p => {
+      if (p.id === currentPlayer.id) {
+        return {
+          ...p,
+          resources: addResources(
+            subtractResources(p.resources, { ...EMPTY_RESOURCES, [offer]: 1 }),
+            { ...EMPTY_RESOURCES, [request]: 1 },
+          ),
+        };
+      }
+      if (p.id === acceptingPlayerId) {
+        return {
+          ...p,
+          resources: addResources(
+            subtractResources(p.resources, { ...EMPTY_RESOURCES, [request]: 1 }),
+            { ...EMPTY_RESOURCES, [offer]: 1 },
+          ),
+        };
+      }
+      return p;
+    }));
+    const acceptor = players.find(p => p.id === acceptingPlayerId)!;
+    addLog(`${currentPlayer.name} traded 1× ${offer} with ${acceptor.name} for 1× ${request}`, currentPlayer.color);
+    setPlayerTradeOpen(false);
+  }
+
   // ── Derived UI values ────────────────────────────────────────────────────────
 
   const isRobberMode = robberState === "place-robber" && currentPlayer.isHuman;
@@ -443,6 +473,16 @@ export default function Game() {
 
   return (
     <main className="h-screen w-screen bg-slate-900 px-6 py-4 flex flex-col overflow-hidden">
+
+      {/* Player trade modal */}
+      {playerTradeOpen && (
+        <PlayerTradeModal
+          humanPlayer={humanPlayer}
+          otherPlayers={players.filter(p => !p.isHuman)}
+          onConfirm={handlePlayerTradeConfirm}
+          onClose={() => setPlayerTradeOpen(false)}
+        />
+      )}
 
       {/* Bank trade modal */}
       {bankTradeOpen && (
@@ -541,7 +581,7 @@ export default function Game() {
             canEndTurn={isHumanActionPhase}
             onRoll={handleRollDice}
             onBankTrade={() => setBankTradeOpen(true)}
-            onPlayerTrade={() => {}}
+            onPlayerTrade={() => setPlayerTradeOpen(true)}
             onEndTurn={handleEndTurn}
           />
         </div>
